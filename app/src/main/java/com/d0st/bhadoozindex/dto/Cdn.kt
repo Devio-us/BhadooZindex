@@ -3,7 +3,7 @@ package com.d0st.bhadoozindex.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class File(
+data class Cdn(
     val name:String,
     val size:Int,
     val parts:Int,
