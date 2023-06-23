@@ -72,6 +72,7 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0'
 
     implementation 'com.github.lyrebirdstudio:filebox:0.1'
+    implementation "com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.2"
 
 
 }

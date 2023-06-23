@@ -17,7 +17,9 @@ import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.ResponseBody
+import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
+import java.time.Duration
 import javax.inject.Inject
 
 sealed class DownloadState {
@@ -31,8 +33,11 @@ sealed class DownloadState {
 @HiltViewModel
 class HmViewModel @Inject constructor() : ViewModel() {
 
-    val uRl = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb.json"
-    val client = OkHttpClient()
+    val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb.json"
+    val uRl = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165.json"
+    val client = OkHttpClient.Builder()
+        .interceptors(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
+        .build()
     private var _response = MutableLiveData<DownloadState>()
     val respose = _response
 
