@@ -34,7 +34,7 @@ class Downloader6 {
 //        val response = client.newCall(request).execute()
 //        return response.body.bytes() ?: throw Exception("Failed to download chunk $chunkNumber")
 //    }
-    suspend fun downloadChunks(start: Int, end: Int,url:String): List<ByteArray> = coroutineScope {
+    private suspend fun downloadChunks(start: Int, end: Int, url:String): List<ByteArray> = coroutineScope {
         val chunks = mutableListOf<ByteArray>()
         val client = OkHttpClient()
         val requests = (start..end).map { chunkNumber ->
@@ -51,7 +51,7 @@ class Downloader6 {
         responses.forEach { chunks.add(it.await()) }
         chunks
     }
-    suspend fun downloadAndJoinChunks(start: Int, end: Int, fileName: String,url:String) {
+    private suspend fun downloadAndJoinChunks(start: Int, end: Int, fileName: String, url:String) {
         val chunks = downloadChunks(start, end,url)
         val file = File(fileName)
         chunks.forEach { chunk -> file.appendBytes(chunk) }
