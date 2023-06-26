@@ -10,7 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -19,7 +18,6 @@ import okhttp3.Request
 import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
-import java.time.Duration
 import javax.inject.Inject
 
 sealed class DownloadState {
@@ -35,8 +33,10 @@ class HmViewModel @Inject constructor() : ViewModel() {
 
     val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb.json"
     val uRl = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165.json"
-    val client = OkHttpClient.Builder()
-        .interceptors(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY))
+    var logging: HttpLoggingInterceptor = HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.HEADERS)
+
+    private val client = OkHttpClient.Builder()
+        .addInterceptor(logging)
         .build()
     private var _response = MutableLiveData<DownloadState>()
     val respose = _response
@@ -116,6 +116,7 @@ class HmViewModel @Inject constructor() : ViewModel() {
     }
 
     fun joinPartsToFile(numParts: Int, outputFile: File) {
+        println("Part = $numParts , file = $outputFile")
         val path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
 
         outputFile.outputStream().use { outputStream ->

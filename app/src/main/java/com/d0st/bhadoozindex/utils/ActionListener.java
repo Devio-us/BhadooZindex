@@ -1,0 +1,12 @@
+package com.d0st.bhadoozindex.utils;
+
+public interface ActionListener {
+
+    void onPauseDownload(int id);
+
+    void onResumeDownload(int id);
+
+    void onRemoveDownload(int id);
+
+    void onRetryDownload(int id);
+}
