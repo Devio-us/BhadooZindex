@@ -1,34 +1,67 @@
 package com.d0st.bhadoozindex
 
-import android.R.attr.path
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.view.View
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
+import com.d0st.bhadoozindex.test.Downloader3
+import com.d0st.bhadoozindex.test.TestDownloader
+import com.d0st.bhadoozindex.test.main
+import com.d0st.bhadoozindex.utils.ActionListener
+import com.d0st.bhadoozindex.utils.DwnAdapter
+import com.d0st.bhadoozindex.utils.DwnHelper
+import com.tonyodev.fetch2.AbstractFetchListener
+import com.tonyodev.fetch2.Download
+import com.tonyodev.fetch2.Fetch
+import com.tonyodev.fetch2.FetchConfiguration
+import com.tonyodev.fetch2.FetchListener
+import com.tonyodev.fetch2.NetworkType
+import com.tonyodev.fetch2core.Downloader
+import com.tonyodev.fetch2okhttp.OkHttpDownloader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.ResponseBody
 import java.io.File
+import java.util.ArrayList
+import java.util.Collections
+import java.util.Comparator
 
 
-const val PART_SIZE = 1024 * 1024 // 1MB
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity() , ActionListener {
 
     private val vm: HmViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
 
+    private val unknownRemainingTime: Long = -1
+    private val unknownDownloadedBytesPerSecond: Long = 0
+    private val fetchNamespace = "MvilaaDownload"
 
-    val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
-    val uRl = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
-//    "http://storage.zindex.eu.org/"
-    val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/" //location where the pdf will store
+    private var fetch: Fetch? = null
+    private var fileAdapter: DwnAdapter? = null
+    var recyclerView: RecyclerView? = null
+
+
+    val uRl1 =
+        "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
+    val part =
+        "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
+
+    //    "http://storage.zindex.eu.org/"
+    val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,9 +69,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val fileUrl = "$uRl.part"
-//        val numParts = 2
-//        val partSize = 25 * 1024 * 1024 // 25 MB in bytes
+//        initDow()
+
+        val fileUrl = "$part.part"
         val outputFile = File("${outPath}output.mkv")
 
         binding.get.setOnClickListener {
@@ -47,76 +80,201 @@ class MainActivity : AppCompatActivity() {
 
                 vm.loadAndCancel { onSuccess ->
 
-                    println("part Size = ${onSuccess.parts}")
-//                    main()
-                    val live =  vm.downloadFileInParts(fileUrl, onSuccess.parts, outputFile)
-                    live.observe(this) { state ->
-                        // Handle the download state change here
-                        when (state) {
-                            is DownloadState.Idle -> {
-                                // Download has not started.
-                                println("State = Idle")
-                            }
-
-                            is DownloadState.Downloading -> {
-                                // Downloading...
-                                println("State = Downloading")
-                            }
-
-                            is DownloadState.PartDownloaded -> {
-                                // Part ${state.partIndex + 1} downloaded.
-                                println("State = PartDownloaded ${state.partIndex}")
-                            }
-
-                            is DownloadState.Joining -> {
-                                // Joining downloaded parts...
-                                println("State = Joining")
-                            }
-
-                            is DownloadState.Error -> {
-                                // An error occurred: state.errorMessage
-                                println("State = Error ${state.message}")
-                            }
-                        }
+                    lifecycleScope.launch {
+                        Downloader3(binding.root,this@MainActivity,part).main()
                     }
+
+                    println("part Size = ${onSuccess.parts}")
+
+
                 }
             }
 
         }
-//        initFetch()
+
+    }
+
+//    private fun startDownloads() {
+//
+//         val totalDownloads = 10 // Total number of downloads
+//         val downloadsPerSet = 5 // Number of downloads per set
+//         var currentSet = 1
+//
+//        val startDownloadIndex = (currentSet - 1) * downloadsPerSet + 1
+//        val endDownloadIndex = currentSet * downloadsPerSet
+//
+//        for (i in startDownloadIndex..endDownloadIndex) {
+//            val fileName = "test$i.mkv"
+//            val fileUrl = "\$uRl$i.part1"
+//
+//            DwnHelper.startDownload(this, binding.root, fileName, fileUrl)
+//        }
+//    }
+
+    private fun download1(url:String,part:Int,file:File){
+        val live =  vm.downloadFileInParts(url, part, file)
+        live.observe(this) { state ->
+            // Handle the download state change here
+            when (state) {
+                is DownloadState.Idle -> {
+                    // Download has not started.
+                    println("State = Idle")
+                }
+
+                is DownloadState.Downloading -> {
+                    // Downloading...
+                    println("State = Downloading")
+                }
+
+                is DownloadState.PartDownloaded -> {
+                    // Part ${state.partIndex + 1} downloaded.
+                    println("State = PartDownloaded ${state.partIndex}")
+                }
+
+                is DownloadState.Joining -> {
+                    // Joining downloaded parts...
+                    println("State = Joining")
+                }
+
+                is DownloadState.Error -> {
+                    // An error occurred: state.errorMessage
+                    println("State = Error ${state.message}")
+                }
+            }
+        }
+    }
+
+    private fun initDow(){
+
+        setUpViews()
+        val fetchConfiguration: FetchConfiguration = FetchConfiguration.Builder(this)
+            .setDownloadConcurrentLimit(1)
+            .enableHashCheck(true)
+            .setGlobalNetworkType(NetworkType.ALL)
+            .enableFileExistChecks(true)
+            .enableRetryOnNetworkGain(true)
+            .setHttpDownloader(OkHttpDownloader(Downloader.FileDownloaderType.PARALLEL))
+            .setNamespace(fetchNamespace)
+            .build()
+
+        fetch = Fetch.getInstance(fetchConfiguration)
+    }
+
+    private fun setUpViews() {
+        recyclerView = binding.recyclerView
+        recyclerView!!.layoutManager = LinearLayoutManager(this)
+        fileAdapter = DwnAdapter(this)
+        recyclerView!!.adapter = fileAdapter
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
+    override fun onResume() {
+        super.onResume()
+        fetch?.getDownloads { downloads ->
+            val list: ArrayList<Download> = ArrayList(downloads)
+            Collections.sort(list, Comparator.comparingLong(Download::created))
+            list.reverse()
+            for (download in list) {
+                fileAdapter!!.addDownload(download)
+            }
+            if (downloads.isEmpty()) {
+                binding.noDownload.visibility = View.VISIBLE
+                recyclerView!!.visibility = View.GONE
+            } else {
+                binding.noDownload.visibility = View.GONE
+                recyclerView!!.visibility = View.VISIBLE
+
+            }
+        }?.addListener(fetchListener)
+    }
+
+    private val fetchListener: FetchListener = object : AbstractFetchListener() {
+        override fun onAdded(download: Download) {
+            super.onAdded(download)
+            fileAdapter!!.addDownload(download)
+        }
+
+        override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onCompleted(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onProgress(
+            download: Download,
+            etaInMilliSeconds: Long,
+            downloadedBytesPerSecond: Long
+        ) {
+            fileAdapter!!.update(download, etaInMilliSeconds, downloadedBytesPerSecond)
+        }
+
+        override fun onPaused(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onResumed(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onCancelled(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onRemoved(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onDeleted(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
 
 
     }
 
-//    fun main() {
-//        val fileUrl = "$uRl.part"
-//        val numParts = 2
-//        val partSize = 25 * 1024 * 1024 // 25 MB in bytes
-//        val outputFile = File("${outPath}output.mp4")
-//
-//        downloadFileInParts(fileUrl, numParts, outputFile)
-//    }
-//
-//    private fun initFetch() {
-//        respose.observe(this) { response ->
-//            when (response) {
-//                is DownloadState.Idle -> {
-//                    println("State = Idle")
-//                }
-//                is DownloadState.Downloading -> {
-//                    println("State = Downloading")
-//                }
-//                is DownloadState.PartDownloaded -> {
-//                    println("State = PartDownloaded ${response.partIndex}")
-//                }
-//                is DownloadState.Joining -> {
-//                    println("State = Joining")
-//                }
-//                is DownloadState.Error -> {
-//                    println("State = Error")
-//                }
-//            }
-//        }
-//    }
+    override fun onPauseDownload(id: Int) {
+        fetch?.pause(id)
+    }
+
+    override fun onResumeDownload(id: Int) {
+        fetch?.resume(id)
+    }
+
+    override fun onRemoveDownload(id: Int) {
+        fetch?.remove(id)
+    }
+
+    override fun onRetryDownload(id: Int) {
+        fetch?.retry(id)
+    }
 
 }
