@@ -13,6 +13,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
 import com.d0st.bhadoozindex.test.Downloader3
+import com.d0st.bhadoozindex.test.Downloader4
+import com.d0st.bhadoozindex.test.Downloader5
 import com.d0st.bhadoozindex.test.TestDownloader
 import com.d0st.bhadoozindex.test.main
 import com.d0st.bhadoozindex.utils.ActionListener
@@ -57,8 +59,10 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
     val uRl1 =
         "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
-    val part =
+    val mb720 =
         "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
+
+    val gb3 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
 
     //    "http://storage.zindex.eu.org/"
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
@@ -71,7 +75,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
 //        initDow()
 
-        val fileUrl = "$part.part"
+        val fileUrl = "$gb3.part"
         val outputFile = File("${outPath}output.mkv")
 
         binding.get.setOnClickListener {
@@ -81,10 +85,10 @@ class MainActivity : AppCompatActivity() , ActionListener {
                 vm.loadAndCancel { onSuccess ->
 
                     lifecycleScope.launch {
-                        Downloader3(binding.root,this@MainActivity,part).main()
+                        Downloader5().main(outPath,mb720)
                     }
 
-                    println("part Size = ${onSuccess.parts}")
+//                    println("part Size = ${onSuccess.parts}")
 
 
                 }
