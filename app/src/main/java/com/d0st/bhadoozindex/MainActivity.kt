@@ -87,7 +87,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
                 vm.loadAndCancel { onSuccess ->
 
                     lifecycleScope.launch {
-                        Downloader7().main()
+                        Downloader7().main(mb720)
                     }
 
 //                    println("part Size = ${onSuccess.parts}")
