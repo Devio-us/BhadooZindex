@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -23,14 +24,14 @@ so that the program doesn't exit until all parts are downloaded.
 
 class Downloader5 {
 
-    suspend fun downloadPart(partNumber: Int,url:String): ByteArray {
+    private suspend fun downloadPart(partNumber: Int, url:String): ByteArray = withContext(Dispatchers.IO) {
         val client = OkHttpClient()
         Log.d("Downloader5", "URL = $url.part$partNumber")
         val request = Request.Builder()
             .url("$url.part$partNumber")
             .build()
         val response = client.newCall(request).execute()
-        return response.body.bytes() ?: throw Exception("Failed to download part $partNumber")
+        response.body.bytes()
     }
 
     suspend fun downloadParts(start: Int, end: Int,url:String): List<ByteArray> {
@@ -43,18 +44,17 @@ class Downloader5 {
     }
 
     suspend fun downloadAllParts(directory:String,url: String) {
-        val partsPerBatch = 10
+        val partsPerBatch = 5
         val totalParts = 65
         var partsDownloaded = 0
-        val jobs = mutableListOf<Job>()
-        coroutineScope {
+//        val jobs = mutableListOf<Job>()
+//        coroutineScope {
             while (partsDownloaded < totalParts) {
                 val remainingParts = totalParts - partsDownloaded
-                val partsToDownload =
-                    if (remainingParts >= partsPerBatch) partsPerBatch else remainingParts
+                val partsToDownload = if (remainingParts >= partsPerBatch) partsPerBatch else remainingParts
                 val startPart = partsDownloaded + 1
                 val endPart = partsDownloaded + partsToDownload
-                jobs += launch(Dispatchers.IO) {
+//                jobs += launch(Dispatchers.IO) {
                     val parts = downloadParts(startPart, endPart,url)
                     parts.forEachIndexed { index, part ->
                         val fileName = "$directory${startPart + index}.bin"
@@ -62,10 +62,10 @@ class Downloader5 {
                         Log.d("Downloader5","Directory = $fileName")
                         File(fileName).writeBytes(part)
                     }
-                }
+//                }
                 partsDownloaded += partsToDownload
             }
-        }
+//        }
     }
 
     fun main(directory: String,url: String) = runBlocking {

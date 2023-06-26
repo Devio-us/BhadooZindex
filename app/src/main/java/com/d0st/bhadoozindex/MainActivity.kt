@@ -15,6 +15,8 @@ import com.d0st.bhadoozindex.databinding.ActivityMainBinding
 import com.d0st.bhadoozindex.test.Downloader3
 import com.d0st.bhadoozindex.test.Downloader4
 import com.d0st.bhadoozindex.test.Downloader5
+import com.d0st.bhadoozindex.test.Downloader6
+import com.d0st.bhadoozindex.test.Downloader7
 import com.d0st.bhadoozindex.test.TestDownloader
 import com.d0st.bhadoozindex.test.main
 import com.d0st.bhadoozindex.utils.ActionListener
@@ -85,7 +87,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
                 vm.loadAndCancel { onSuccess ->
 
                     lifecycleScope.launch {
-                        Downloader5().main(outPath,mb720)
+                        Downloader7().main()
                     }
 
 //                    println("part Size = ${onSuccess.parts}")
