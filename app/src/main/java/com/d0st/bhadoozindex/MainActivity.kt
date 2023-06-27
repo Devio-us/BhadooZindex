@@ -3,6 +3,7 @@ package com.d0st.bhadoozindex
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.view.View
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
@@ -60,15 +61,17 @@ class MainActivity : AppCompatActivity() , ActionListener {
     var recyclerView: RecyclerView? = null
 
 
-    val uRl1 =
-        "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
-    val mb720 =
-        "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
-
+    val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
+    val mb720 = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
     private val gb3_13 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
 
     //    "http://storage.zindex.eu.org/"
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
+
+
+    /* Pause Algorithm = First Check Which bunch is currently downloading if 15 to 20 bunch is in process then pause download and check which file
+        is downloaded in bunch like 15 is downloaded then start download from 16
+    */
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,7 +81,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
 //        initDow()
 
-        val fileUrl = "$mb720.part"
+        val fileUrl = "$gb3_13.part"
         val outputFile = File("${outPath}output.mkv")
 
         binding.get.setOnClickListener {
@@ -88,7 +91,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
                 vm.loadAndCancel { onSuccess ->
 
                     lifecycleScope.launch {
-                        Downloader3(binding.root,this@MainActivity,mb720).main(onSuccess.parts)
+                        Downloader3(binding.root,this@MainActivity,gb3_13).main(onSuccess.parts)
                     }
 
 //                    println("part Size = ${onSuccess.parts}")
@@ -100,23 +103,6 @@ class MainActivity : AppCompatActivity() , ActionListener {
         }
 
     }
-
-//    private fun startDownloads() {
-//
-//         val totalDownloads = 10 // Total number of downloads
-//         val downloadsPerSet = 5 // Number of downloads per set
-//         var currentSet = 1
-//
-//        val startDownloadIndex = (currentSet - 1) * downloadsPerSet + 1
-//        val endDownloadIndex = currentSet * downloadsPerSet
-//
-//        for (i in startDownloadIndex..endDownloadIndex) {
-//            val fileName = "test$i.mkv"
-//            val fileUrl = "\$uRl$i.part1"
-//
-//            DwnHelper.startDownload(this, binding.root, fileName, fileUrl)
-//        }
-//    }
 
     private fun download1(url:String,part:Int,file:File){
         val live =  vm.downloadFileInParts(url, part, file)
@@ -282,6 +268,11 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
     override fun onRetryDownload(id: Int) {
         fetch?.retry(id)
+    }
+
+    override fun onDestroy() {
+        Log.wtf("Bhadoo","**** App Destroyed ****")
+        super.onDestroy()
     }
 
 }

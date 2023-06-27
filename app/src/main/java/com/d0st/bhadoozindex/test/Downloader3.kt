@@ -24,7 +24,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class Downloader3(private val view: View, private val ctx: Context, private val url: String) {
+
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
+
+    val timeOutPartList = mutableListOf<Int>()
 
     private suspend fun downloadPart(partNumber: Int): String {
         delay(10000)
@@ -39,7 +42,7 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
 
             val chunks = mutableListOf<ByteArray>()
             val client = OkHttpClient.Builder()
-                .callTimeout(30, TimeUnit.SECONDS)
+                .callTimeout(1, TimeUnit.MINUTES)
                 .build()
 
             val url = "$url.part$partNumber"
@@ -64,9 +67,11 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
                     val response = client.newCall(requests).execute().use { response ->
                         response.body.bytes()
                     }
+                    println("Downloaded: $partNumber")
                     chunks.add(response)
                 } catch (e: Exception) {
-                    Log.wtf("Downloader3", "okHttp Error = ${e.message}")
+                    timeOutPartList.add(partNumber)
+                    Log.wtf("Downloader3", "okHttp Error $partNumber = ${e.message}")
                 }
             }
 
@@ -76,20 +81,23 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
         }
 
     private suspend fun downloadParallelParts(startIndex: Int, endIndex: Int) {
-        coroutineScope {
+        try {
+            coroutineScope {
 
-            val jobs = mutableListOf<Job>()
-            for (partNumber in startIndex..endIndex) {
-                val job = launch {
+                val jobs = mutableListOf<Job>()
+                for (partNumber in startIndex..endIndex) {
+                    val job = launch {
 //                    val part = downloadPart(partNumber)
-                    val part = okHttp(startIndex, endIndex, partNumber + 1)
-                    val file = File("${outPath}Parts/${partNumber + 1}.mkv")
-                    part.forEach { file.appendBytes(it) }
-                    println("Downloaded: ${part.component1()}")
+                        val part = okHttp(startIndex, endIndex, partNumber + 1)
+                        val file = File("${outPath}Parts/${partNumber + 1}.mkv")
+                        part.forEach { file.appendBytes(it) }
+                    }
+                    jobs.add(job)
                 }
-                jobs.add(job)
+                jobs.joinAll()
             }
-            jobs.joinAll()
+        }catch (e:Exception){
+            Log.wtf("Downloader3","Parallel Error = $e")
         }
     }
 
