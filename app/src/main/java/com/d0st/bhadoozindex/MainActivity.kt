@@ -81,9 +81,6 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
 //        initDow()
 
-        val fileUrl = "$gb3_13.part"
-        val outputFile = File("${outPath}output.mkv")
-
         binding.get.setOnClickListener {
 
             Permission.verifyStoragePermission(this) {

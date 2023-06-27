@@ -5,6 +5,7 @@ import android.os.Environment
 import android.util.Log
 import android.view.View
 import com.d0st.bhadoozindex.utils.DwnHelper
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
@@ -15,8 +16,10 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -42,23 +45,16 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
 
             val chunks = mutableListOf<ByteArray>()
             val client = OkHttpClient.Builder()
-                .callTimeout(1, TimeUnit.MINUTES)
+                .connectionPool(ConnectionPool())
+//                .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
+//                .callTimeout(5, TimeUnit.MINUTES)
                 .build()
 
             val url = "$url.part$partNumber"
-//        val requests = (start..end).map { chunkNumber ->
             Log.d("Downloader3", "Url = $url")
-//            Request.Builder().url("$url.part$chunkNumber").build()
-//        }
-//        val responses = requests.map { request ->
-//            async(Dispatchers.IO) {
-//                client.newCall(request).execute().use { response ->
-//                    response.body.bytes() ?: throw Exception("Failed to download chunk ${request.url}")
-//                }
-//            }
-//        }
 
-            launch(Dispatchers.IO) {
+
+            val responseDeferred = async(Dispatchers.IO) {
                 val requests = Request.Builder()
                     .url(url)
                     .build()
@@ -67,13 +63,22 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
                     val response = client.newCall(requests).execute().use { response ->
                         response.body.bytes()
                     }
-                    println("Downloaded: $partNumber")
-                    chunks.add(response)
+//                    println("Downloaded: $partNumber")
+//                    chunks.add(response)
+                    response
                 } catch (e: Exception) {
                     timeOutPartList.add(partNumber)
                     Log.wtf("Downloader3", "okHttp Error $partNumber = ${e.message}")
+                    null
                 }
             }
+            responseDeferred.await()?.let {
+                println("Downloaded: $partNumber")
+                chunks.add(it)
+            }
+//            if (response != null) {
+//                chunks.add(response)
+//            }
 
 //        responses.forEach { chunks.add(it.await()) }
             return@coroutineScope chunks
@@ -96,8 +101,8 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
                 }
                 jobs.joinAll()
             }
-        }catch (e:Exception){
-            Log.wtf("Downloader3","Parallel Error = $e")
+        } catch (e: Exception) {
+            Log.wtf("Downloader3", "Parallel Error = $e")
         }
     }
 
@@ -179,7 +184,6 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
 //        }
 
 
-
         /*V3 Bito*/
 //        suspend fun joinFiles() = withContext(Dispatchers.IO) {
 //            try {
@@ -206,27 +210,27 @@ class Downloader3(private val view: View, private val ctx: Context, private val 
 //            }
 //        }
 
-           /*V4 Gpt */
-/*        suspend fun joinFiles() = withContext(Dispatchers.IO) {
-            try {
-                val dir = File(inputDir)
-                val files = dir.listFiles { _, name -> name.endsWith(".mkv") }
-                val out = FileOutputStream(outputFile)
-                files?.sortedBy { it.nameWithoutExtension.toInt() }?.forEach { file ->
-                    Log.d("Downloader3", "files = $file")
-                    FileInputStream(file).use { input ->
-                        input.copyTo(out)
-//                        input.close()
-                    }
+        /*V4 Gpt */
+        /*        suspend fun joinFiles() = withContext(Dispatchers.IO) {
+                    try {
+                        val dir = File(inputDir)
+                        val files = dir.listFiles { _, name -> name.endsWith(".mkv") }
+                        val out = FileOutputStream(outputFile)
+                        files?.sortedBy { it.nameWithoutExtension.toInt() }?.forEach { file ->
+                            Log.d("Downloader3", "files = $file")
+                            FileInputStream(file).use { input ->
+                                input.copyTo(out)
+        //                        input.close()
+                            }
 
-                    file.delete()
-                }
-                out.close()
-                Log.d("Downloader3", "Complete Merging")
-            } catch (e: Exception) {
-                Log.wtf("Downloader3", "File Merging Error = ${e.message}")
-            }
-        }*/
+                            file.delete()
+                        }
+                        out.close()
+                        Log.d("Downloader3", "Complete Merging")
+                    } catch (e: Exception) {
+                        Log.wtf("Downloader3", "File Merging Error = ${e.message}")
+                    }
+                }*/
 
         /*V5 GPT*/
         suspend fun joinFiles() = withContext(Dispatchers.IO) {
