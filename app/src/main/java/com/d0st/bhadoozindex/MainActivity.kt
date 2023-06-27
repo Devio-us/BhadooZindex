@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
     val mb720 =
         "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
 
-    val gb3 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
+    private val gb3_13 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
 
     //    "http://storage.zindex.eu.org/"
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
 //        initDow()
 
-        val fileUrl = "$gb3.part"
+        val fileUrl = "$mb720.part"
         val outputFile = File("${outPath}output.mkv")
 
         binding.get.setOnClickListener {
@@ -88,7 +88,7 @@ class MainActivity : AppCompatActivity() , ActionListener {
                 vm.loadAndCancel { onSuccess ->
 
                     lifecycleScope.launch {
-                        Downloader8().main()
+                        Downloader3(binding.root,this@MainActivity,mb720).main(onSuccess.parts)
                     }
 
 //                    println("part Size = ${onSuccess.parts}")
