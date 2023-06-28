@@ -94,6 +94,13 @@ class MainActivity : AppCompatActivity() {
             }
 
         }
+        binding.pause.setOnClickListener {
+//            downloader.pauseInterceptor.pause()
+//            downloader.call.cancel()
+        }
+        binding.resume.setOnClickListener {
+//            downloader.pauseInterceptor.resume()
+        }
 
     }
 

@@ -5,6 +5,7 @@ import android.os.Environment
 import android.util.Log
 import android.view.View
 import androidx.lifecycle.MutableLiveData
+import com.d0st.bhadoozindex.Utils
 import com.tonyodev.fetch2.Download
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,20 +35,26 @@ class Downloader3 {
     private var _response = MutableLiveData<DownloadState>()
     val respose = _response
     private val currentState = ArrayList<String>()
+    val pauseInterceptor = Utils.PauseInterceptor()
 
-    private suspend fun okHttp(start: Int, end: Int, partNumber: Int,url: String): List<ByteArray> =
+     suspend fun okHttp(start: Int, end: Int, partNumber: Int,url: String): List<ByteArray> =
         coroutineScope {
 
             val chunks = mutableListOf<ByteArray>()
             val client = OkHttpClient.Builder()
                 .connectionPool(ConnectionPool())
                 .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
-//                .callTimeout(5, TimeUnit.MINUTES)
+                .addInterceptor(pauseInterceptor)
                 .build()
 
             val url = "$url.part$partNumber"
 //            Log.d("Downloader3", "Url = $url")
+            if (pauseInterceptor.isPaused) {
+                Log.wtf("Downloader3","Downloading is Paused")
+            } else {
+                Log.wtf("Downloader3","Downloading is not Paused")
 
+            }
 
             val responseDeferred = async(Dispatchers.IO) {
                 val requests = Request.Builder()
