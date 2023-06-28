@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.util.Log
 import android.view.View
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
+import com.d0st.bhadoozindex.test.DownloadState
 import com.d0st.bhadoozindex.test.Downloader3
 import com.d0st.bhadoozindex.test.Downloader4
 import com.d0st.bhadoozindex.test.Downloader5
@@ -47,18 +49,10 @@ import java.util.Collections
 import java.util.Comparator
 
 
-class MainActivity : AppCompatActivity() , ActionListener {
+class MainActivity : AppCompatActivity() {
 
     private val vm: HmViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
-
-    private val unknownRemainingTime: Long = -1
-    private val unknownDownloadedBytesPerSecond: Long = 0
-    private val fetchNamespace = "MvilaaDownload"
-
-    private var fetch: Fetch? = null
-    private var fileAdapter: DwnAdapter? = null
-    var recyclerView: RecyclerView? = null
 
 
     val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
@@ -67,9 +61,10 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
     //    "http://storage.zindex.eu.org/"
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
+    private lateinit var rvAdapter: StateAdapter
+    private val downloader = Downloader3()
 
-
-    /* Pause Algorithm = First Check Which bunch is currently downloading if 15 to 20 bunch is in process then pause download and check which file
+    /*  Pause Algorithm = First Check Which bunch is currently downloading if 15 to 20 bunch is in process then pause download and check which file
         is downloaded in bunch like 15 is downloaded then start download from 16
     */
 
@@ -79,16 +74,17 @@ class MainActivity : AppCompatActivity() , ActionListener {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-//        initDow()
-
+        rvAdapter = StateAdapter()
+        binding.rvList.adapter = rvAdapter
         binding.get.setOnClickListener {
 
             Permission.verifyStoragePermission(this) {
 
                 vm.loadAndCancel { onSuccess ->
+                    initFetch()
 
                     lifecycleScope.launch {
-                        Downloader3(binding.root,this@MainActivity,gb3_13).main(onSuccess.parts)
+                        downloader.main(onSuccess.parts,gb3_13)
                     }
 
 //                    println("part Size = ${onSuccess.parts}")
@@ -101,175 +97,36 @@ class MainActivity : AppCompatActivity() , ActionListener {
 
     }
 
-    private fun download1(url:String,part:Int,file:File){
-        val live =  vm.downloadFileInParts(url, part, file)
-        live.observe(this) { state ->
-            // Handle the download state change here
-            when (state) {
-                is DownloadState.Idle -> {
-                    // Download has not started.
-                    println("State = Idle")
+    private fun initFetch() {
+        Log.d("Downloader3","InitFetch Called")
+        downloader.respose.observe(this) { response ->
+            when(response){
+                is DownloadState.CurrentState -> {
+                    rvAdapter.setCommonData(response.state)
+                    Log.d("Downloader3","CurrentState = ${response.state}")
                 }
-
-                is DownloadState.Downloading -> {
-                    // Downloading...
-                    println("State = Downloading")
-                }
-
-                is DownloadState.PartDownloaded -> {
-                    // Part ${state.partIndex + 1} downloaded.
-                    println("State = PartDownloaded ${state.partIndex}")
-                }
-
-                is DownloadState.Joining -> {
-                    // Joining downloaded parts...
-                    println("State = Joining")
-                }
-
                 is DownloadState.Error -> {
-                    // An error occurred: state.errorMessage
-                    println("State = Error ${state.message}")
+                    Log.wtf("Downloader3","DownloadState Error ${response.message}")
                 }
             }
-        }
-    }
 
-    private fun initDow(){
-
-        setUpViews()
-        val fetchConfiguration: FetchConfiguration = FetchConfiguration.Builder(this)
-            .setDownloadConcurrentLimit(1)
-            .enableHashCheck(true)
-            .setGlobalNetworkType(NetworkType.ALL)
-            .enableFileExistChecks(true)
-            .enableRetryOnNetworkGain(true)
-            .setHttpDownloader(OkHttpDownloader(Downloader.FileDownloaderType.PARALLEL))
-            .setNamespace(fetchNamespace)
-            .build()
-
-        fetch = Fetch.getInstance(fetchConfiguration)
-    }
-
-    private fun setUpViews() {
-        recyclerView = binding.recyclerView
-        recyclerView!!.layoutManager = LinearLayoutManager(this)
-        fileAdapter = DwnAdapter(this)
-        recyclerView!!.adapter = fileAdapter
-    }
-
-    @RequiresApi(Build.VERSION_CODES.N)
-    override fun onResume() {
-        super.onResume()
-        fetch?.getDownloads { downloads ->
-            val list: ArrayList<Download> = ArrayList(downloads)
-            Collections.sort(list, Comparator.comparingLong(Download::created))
-            list.reverse()
-            for (download in list) {
-                fileAdapter!!.addDownload(download)
-            }
-            if (downloads.isEmpty()) {
-                binding.noDownload.visibility = View.VISIBLE
-                recyclerView!!.visibility = View.GONE
-            } else {
-                binding.noDownload.visibility = View.GONE
-                recyclerView!!.visibility = View.VISIBLE
-
-            }
-        }?.addListener(fetchListener)
-    }
-
-    private val fetchListener: FetchListener = object : AbstractFetchListener() {
-        override fun onAdded(download: Download) {
-            super.onAdded(download)
-            fileAdapter!!.addDownload(download)
+//            when (response) {
+//                is Resource.Success -> {
+//                    UiHelper.loadingDialogBuilder.dismissSafe()
+//                    response.data?.data?.let {
+//                        rvAdapter.setCommonData(it)
+//                    }
+//                }
+//                is Resource.Error -> {
+//                    UiHelper.loadingDialogBuilder.dismissSafe()
+//                    Toast.makeText(requireContext(), response.message, Toast.LENGTH_LONG).show()
+//                }
+//                is Resource.Loading -> {
+//                    UiHelper.loadingDialog(requireContext())
+//                }
+//            }
         }
 
-        override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
-            fileAdapter!!.update(
-                download,
-                unknownRemainingTime,
-                unknownDownloadedBytesPerSecond
-            )
-        }
-
-        override fun onCompleted(download: Download) {
-            fileAdapter!!.update(
-                download,
-                unknownRemainingTime,
-                unknownDownloadedBytesPerSecond
-            )
-        }
-
-        override fun onProgress(
-            download: Download,
-            etaInMilliSeconds: Long,
-            downloadedBytesPerSecond: Long
-        ) {
-            fileAdapter!!.update(download, etaInMilliSeconds, downloadedBytesPerSecond)
-        }
-
-        override fun onPaused(download: Download) {
-            fileAdapter!!.update(
-                download,
-                unknownRemainingTime,
-                unknownDownloadedBytesPerSecond
-            )
-        }
-
-        override fun onResumed(download: Download) {
-            fileAdapter!!.update(
-                download,
-                unknownRemainingTime,
-                unknownDownloadedBytesPerSecond
-            )
-        }
-
-        override fun onCancelled(download: Download) {
-            fileAdapter!!.update(
-                download,
-                unknownRemainingTime,
-                unknownDownloadedBytesPerSecond
-            )
-        }
-
-        override fun onRemoved(download: Download) {
-            fileAdapter!!.update(
-                download,
-                unknownRemainingTime,
-                unknownDownloadedBytesPerSecond
-            )
-        }
-
-        override fun onDeleted(download: Download) {
-            fileAdapter!!.update(
-                download,
-                unknownRemainingTime,
-                unknownDownloadedBytesPerSecond
-            )
-        }
-
-
-    }
-
-    override fun onPauseDownload(id: Int) {
-        fetch?.pause(id)
-    }
-
-    override fun onResumeDownload(id: Int) {
-        fetch?.resume(id)
-    }
-
-    override fun onRemoveDownload(id: Int) {
-        fetch?.remove(id)
-    }
-
-    override fun onRetryDownload(id: Int) {
-        fetch?.retry(id)
-    }
-
-    override fun onDestroy() {
-        Log.wtf("Bhadoo","**** App Destroyed ****")
-        super.onDestroy()
     }
 
 }
