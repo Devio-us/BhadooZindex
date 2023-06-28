@@ -21,6 +21,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 
 sealed class DownloadState {
@@ -35,7 +36,8 @@ class Downloader3 {
     private var _response = MutableLiveData<DownloadState>()
     val respose = _response
     private val currentState = ArrayList<String>()
-    val pauseInterceptor = Utils.PauseInterceptor()
+    val latch = CountDownLatch(1)
+    val pauseInterceptor = Utils.PauseInterceptor(latch)
 
      suspend fun okHttp(start: Int, end: Int, partNumber: Int,url: String): List<ByteArray> =
         coroutineScope {
