@@ -14,6 +14,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Call
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -36,61 +37,53 @@ class Downloader3 {
     private var _response = MutableLiveData<DownloadState>()
     val respose = _response
     private val currentState = ArrayList<String>()
-    val latch = CountDownLatch(1)
-    val pauseInterceptor = Utils.PauseInterceptor(latch)
 
-     suspend fun okHttp(start: Int, end: Int, partNumber: Int,url: String): List<ByteArray> =
+     private suspend fun okHttp(start: Int, end: Int, partNumber: Int, url: String): List<ByteArray> =
         coroutineScope {
 
             val chunks = mutableListOf<ByteArray>()
             val client = OkHttpClient.Builder()
                 .connectionPool(ConnectionPool())
                 .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
-                .addInterceptor(pauseInterceptor)
+//                .addInterceptor(pauseInterceptor)
                 .build()
 
-            val url = "$url.part$partNumber"
+            val urll = "$url.part$partNumber"
 //            Log.d("Downloader3", "Url = $url")
-            if (pauseInterceptor.isPaused) {
-                Log.wtf("Downloader3","Downloading is Paused")
-            } else {
-                Log.wtf("Downloader3","Downloading is not Paused")
+//            if (pauseInterceptor.isPaused) {
+//                Log.wtf("Downloader3","Downloading is Paused")
+//            } else {
+//                Log.wtf("Downloader3","Downloading is not Paused")
+//
+//            }
 
-            }
-
-            val responseDeferred = async(Dispatchers.IO) {
+            launch(Dispatchers.IO) {
                 val requests = Request.Builder()
-                    .url(url)
+                    .url(urll)
                     .build()
 
                 try {
                     val response = client.newCall(requests).execute().use { response ->
                         response.body.bytes()
                     }
-//                    println("Downloaded: $partNumber")
-//                    chunks.add(response)
-                    response
+                    println("Downloaded: $partNumber")
+                    chunks.add(response)
+                    currentState.clear()
+                    currentState.add("Downloaded : $partNumber")
+                    _response.postValue(DownloadState.CurrentState(state =  currentState))
                 } catch (e: Exception) {
                     timeOutPartList.add(partNumber)
                     currentState.clear()
                     currentState.add("Part Download Error : $partNumber = ${e.message}")
                     _response.postValue(DownloadState.CurrentState(state =  currentState))
                     Log.wtf("Downloader3", "okHttp Error $partNumber = ${e.message}")
-                    null
                 }
             }
-            responseDeferred.await()?.let {
-                println("Downloaded: $partNumber")
-                currentState.clear()
-                currentState.add("Downloaded : $partNumber")
-                _response.postValue(DownloadState.CurrentState(state =  currentState))
-                chunks.add(it)
-            }
-//            if (response != null) {
-//                chunks.add(response)
-//            }
+//            responseDeferred.await()?.let {
+//                println("Downloaded: $partNumber")
 
-//        responses.forEach { chunks.add(it.await()) }
+//                chunks.add(it)
+//            }
             return@coroutineScope chunks
 
         }

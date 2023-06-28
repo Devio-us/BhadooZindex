@@ -44,7 +44,7 @@ class HmViewModel @Inject constructor() : ViewModel() {
 
     fun loadAndCancel(onSuccess: (Cdn) -> Unit) {
         viewModelScope.launch {
-            val getResult = Ok(client).get(gb3)
+            val getResult = Ok(client).get(mb720)
 
             if (getResult.isSuccess) {
                 val response = getResult.getOrElse { "" }

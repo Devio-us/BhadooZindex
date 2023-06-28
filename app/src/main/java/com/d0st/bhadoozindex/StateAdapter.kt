@@ -33,7 +33,7 @@ class StateAdapter : RecyclerView.Adapter<StateAdapter.ViewHolder>() {
     }
 
     fun setCommonData(newData: ArrayList<String>) {
-        Log.wtf("StateAdapter", newData.toString())
+//        Log.wtf("StateAdapter", newData.toString())
 
         val movieDiffUtil = CommonDiff(mList, newData)
 
