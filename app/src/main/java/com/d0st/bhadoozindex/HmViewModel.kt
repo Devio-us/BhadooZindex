@@ -31,9 +31,9 @@ sealed class DownloadState {
 @HiltViewModel
 class HmViewModel @Inject constructor() : ViewModel() {
 
-    val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb.json"
+//    val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb.json"
     val mb720 = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165.json"
-    val gb3 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a.json"
+//    val gb3 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a.json"
     var logging: HttpLoggingInterceptor = HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.HEADERS)
 
     private val client = OkHttpClient.Builder()
@@ -42,9 +42,12 @@ class HmViewModel @Inject constructor() : ViewModel() {
     private var _response = MutableLiveData<DownloadState>()
     val respose = _response
 
-    fun loadAndCancel(onSuccess: (Cdn) -> Unit) {
+    fun loadAndCancel(link:String,onSuccess: (Cdn) -> Unit) {
+        println("***** link = $link *********")
         viewModelScope.launch {
-            val getResult = Ok(client).get(mb720)
+
+            val getResult = if (link.isEmpty()) { Ok(client).get(mb720) } else { Ok(client).get("$link.json") }
+//            val getResult = Ok(client).get(link ?: mb720)
 
             if (getResult.isSuccess) {
                 val response = getResult.getOrElse { "" }

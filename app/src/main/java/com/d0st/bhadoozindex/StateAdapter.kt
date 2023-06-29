@@ -9,7 +9,7 @@ import com.d0st.bhadoozindex.databinding.RvChallanItemsBinding
 
 class StateAdapter : RecyclerView.Adapter<StateAdapter.ViewHolder>() {
 
-    private var mList: ArrayList<String> = ArrayList()
+    private var mList: List<String> = ArrayList()
 
     inner class ViewHolder(val binding: RvChallanItemsBinding) :
         RecyclerView.ViewHolder(binding.root)
@@ -32,15 +32,15 @@ class StateAdapter : RecyclerView.Adapter<StateAdapter.ViewHolder>() {
         return mList.size
     }
 
-    fun setCommonData(newData: ArrayList<String>) {
+    fun setCommonData(newData: List<String>) {
 //        Log.wtf("StateAdapter", newData.toString())
 
         val movieDiffUtil = CommonDiff(mList, newData)
 
         val diffUtilResult = DiffUtil.calculateDiff(movieDiffUtil)
+
 //        mList.clear()
-//        newData.reverse()
-        mList += newData.also { it.reverse() }
+        mList = newData
 
         diffUtilResult.dispatchUpdatesTo(this)
     }

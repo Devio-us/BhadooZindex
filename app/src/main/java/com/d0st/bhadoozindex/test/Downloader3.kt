@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.View
 import androidx.lifecycle.MutableLiveData
 import com.d0st.bhadoozindex.Utils
+import com.d0st.bhadoozindex.dto.Cdn
 import com.tonyodev.fetch2.Download
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,6 +24,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 sealed class DownloadState {
@@ -45,17 +47,10 @@ class Downloader3 {
             val client = OkHttpClient.Builder()
                 .connectionPool(ConnectionPool())
                 .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
-//                .addInterceptor(pauseInterceptor)
+                .callTimeout(5,TimeUnit.MINUTES)
                 .build()
 
             val urll = "$url.part$partNumber"
-//            Log.d("Downloader3", "Url = $url")
-//            if (pauseInterceptor.isPaused) {
-//                Log.wtf("Downloader3","Downloading is Paused")
-//            } else {
-//                Log.wtf("Downloader3","Downloading is not Paused")
-//
-//            }
 
             launch(Dispatchers.IO) {
                 val requests = Request.Builder()
@@ -66,38 +61,31 @@ class Downloader3 {
                     val response = client.newCall(requests).execute().use { response ->
                         response.body.bytes()
                     }
-                    println("Downloaded: $partNumber")
+//                    println("Downloaded: $partNumber")
                     chunks.add(response)
-                    currentState.clear()
-                    currentState.add("Downloaded : $partNumber")
-                    _response.postValue(DownloadState.CurrentState(state =  currentState))
+                    currentState.add("Downloaded : $partNumber").also { _response.postValue(DownloadState.CurrentState(state =  currentState)) }
+
                 } catch (e: Exception) {
                     timeOutPartList.add(partNumber)
-                    currentState.clear()
-                    currentState.add("Part Download Error : $partNumber = ${e.message}")
-                    _response.postValue(DownloadState.CurrentState(state =  currentState))
+                    currentState.add("Part Download Error : $partNumber = ${e.message}").also {
+                        _response.postValue(DownloadState.CurrentState(state =  currentState))
+                    }
                     Log.wtf("Downloader3", "okHttp Error $partNumber = ${e.message}")
                 }
             }
-//            responseDeferred.await()?.let {
-//                println("Downloaded: $partNumber")
-
-//                chunks.add(it)
-//            }
             return@coroutineScope chunks
 
         }
 
-    private suspend fun downloadParallelParts(startIndex: Int, endIndex: Int,url: String) {
+    private suspend fun downloadParallelParts(startIndex: Int, endIndex: Int,url: String,externalCacheDir:String) {
         try {
             coroutineScope {
 
                 val jobs = mutableListOf<Job>()
                 for (partNumber in startIndex..endIndex) {
                     val job = launch {
-//                    val part = downloadPart(partNumber)
                         val part = okHttp(startIndex, endIndex, partNumber + 1,url)
-                        val file = File("${outPath}Parts/${partNumber + 1}.mkv")
+                        val file = File("$externalCacheDir/${partNumber + 1}.bin")
                         part.forEach { file.appendBytes(it) }
                     }
                     jobs.add(job)
@@ -105,44 +93,50 @@ class Downloader3 {
                 jobs.joinAll()
             }
         } catch (e: Exception) {
-            currentState.clear()
-            currentState.add("Parallel Download Error = $e")
-            _response.postValue(DownloadState.CurrentState(state =  currentState))
+            currentState.add("Parallel Download Error = $e").also {
+                _response.postValue(DownloadState.CurrentState(state =  currentState))
+            }
             Log.wtf("Downloader3", "Parallel Error = $e")
         }
     }
 
-    suspend fun main(totalParts: Int,url: String) {
-        val totalPartss = 13
+    suspend fun main(Json: Cdn, url: String, ctx:Context) {
         val batchSize = 5
         val partCount = AtomicInteger(0)
-        currentState.add("Idle")
-        _response.postValue(DownloadState.CurrentState(state =  currentState))
-
-        while (partCount.get() < totalParts) {
-            val startIndex = partCount.getAndAdd(batchSize)
-            val endIndex = (startIndex + batchSize - 1).coerceAtMost(totalParts - 1)
-            Log.d("Download3", "endIndex = $endIndex")
-            Log.d("Download3", "startIndex = $startIndex")
-            currentState.clear()
-            currentState.add("Parts Downloading : $startIndex to $endIndex")
+        currentState.add("Idle").also {
             _response.postValue(DownloadState.CurrentState(state =  currentState))
-            downloadParallelParts(startIndex, endIndex,url)
         }
 
-        currentState.clear()
-        currentState.add("*******************************")
-        _response.postValue(DownloadState.CurrentState(state =  currentState))
+        val externalCacheString = "${ctx.externalCacheDir}/Parts"
+        val externalCacheFolder = File(externalCacheString)
+        if (!externalCacheFolder.exists()){
+            externalCacheFolder.mkdirs()
+        }
+
+        while (partCount.get() < Json.parts) {
+            val startIndex = partCount.getAndAdd(batchSize)
+            val endIndex = (startIndex + batchSize - 1).coerceAtMost(Json.parts - 1)
+            Log.d("Download3", "endIndex = $endIndex")
+            Log.d("Download3", "startIndex = $startIndex")
+            currentState.add("Parts Downloading : ${startIndex+1} to ${endIndex+1}").also {
+                _response.postValue(DownloadState.CurrentState(state =  currentState))
+            }
+            downloadParallelParts(startIndex, endIndex,url,externalCacheString)
+        }
+
+        currentState.add("*******************************").also {
+            _response.postValue(DownloadState.CurrentState(state =  currentState))
+        }
 
         coroutineScope {
             launch {
-                currentState.clear()
-                currentState.add("Parts Merging Start")
-                _response.postValue(DownloadState.CurrentState(state =  currentState))
-                joinFiles("${outPath}Parts/", "${outPath}Out/file.mkv")
-                currentState.clear()
-                currentState.add("File has Downloaded")
-                _response.postValue(DownloadState.CurrentState(state =  currentState))
+                currentState.add("Parts Merging Start").also {
+                    _response.postValue(DownloadState.CurrentState(state =  currentState))
+                }
+                joinFiles("$externalCacheString/", "${outPath}${Json.name}")
+                currentState.add("File has Downloaded").also {
+                    _response.postValue(DownloadState.CurrentState(state =  currentState))
+                }
             }
         }
 //        Log.d("Downloader3", "while Outer Called")
@@ -253,11 +247,11 @@ class Downloader3 {
         private suspend fun joinFiles(inputDir: String, outputFile: String) = withContext(Dispatchers.IO) {
             try {
                 val dir = File(inputDir)
-                val files = dir.listFiles { _, name -> name.endsWith(".mkv") }
+                val files = dir.listFiles { _, name -> name.endsWith(".bin") }
                 val out = FileOutputStream(outputFile)
                 files?.sortedBy { it.nameWithoutExtension.toInt() }?.forEach { file ->
-//                    Log.d("Downloader3", "files = $file")
-                    val input = FileInputStream(file).buffered()
+//                    Log.d("Downloader3", "Sorted files = $file")
+                    val input = FileInputStream(file).buffered()  // Default Buffer Size - 8192 (8 * 1024)
                     input.copyTo(out)
                     input.close()
                     file.delete()

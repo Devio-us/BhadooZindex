@@ -1,5 +1,6 @@
 package com.d0st.bhadoozindex
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
@@ -11,7 +12,7 @@ import com.d0st.bhadoozindex.databinding.ActivityMainBinding
 import com.d0st.bhadoozindex.test.DownloadState
 import com.d0st.bhadoozindex.test.Downloader3
 import kotlinx.coroutines.launch
-
+import java.io.File
 
 
 class MainActivity : AppCompatActivity() {
@@ -41,40 +42,52 @@ class MainActivity : AppCompatActivity() {
 
         rvAdapter = StateAdapter()
         binding.rvList.adapter = rvAdapter
+
+        val link = binding.link.text
         binding.get.setOnClickListener {
 
             Permission.verifyStoragePermission(this) {
 
-                vm.loadAndCancel { onSuccess ->
+                vm.loadAndCancel(link.toString()) { onSuccess ->
                     initFetch()
 
                     lifecycleScope.launch {
-                        downloader.main(onSuccess.parts,mb720)
+                        if(link.toString().isEmpty()){
+                            downloader.main(onSuccess, mb720,this@MainActivity)
+                        }else {
+                            downloader.main(onSuccess, link.toString(),this@MainActivity)
+                        }
                     }
-
-//                    println("part Size = ${onSuccess.parts}")
-
-
                 }
             }
+        }
 
-        }
-        binding.pause.setOnClickListener {
-//            downloader.pauseInterceptor.pause()
-//            downloader.call.cancel()
-        }
-        binding.resume.setOnClickListener {
-//            downloader.pauseInterceptor.resume()
+        binding.test.setOnClickListener {
+            val externalFilesDir = this.getExternalFilesDir("parts") // Get the application's internal storage directory
+            println("---external file dir ${externalFilesDir?.absolutePath}")
+            println("---external cache dir ${this.externalCacheDir}")
+            println("---cache dir ${this.cacheDir}")
+            val customFolder = File(externalFilesDir, "com.d0st.bhadoozindex")
+            if (!customFolder.exists()) {
+                println("------Create folder in data")
+                customFolder.mkdirs() // Create the folder if it doesn't exist
+            }
+            val file = File(customFolder, "Parts.txt") // Create the file within the custom folder
+
+            file.writeText("Hello, World!") //
         }
 
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private fun initFetch() {
         Log.d("Downloader3","InitFetch Called")
         downloader.respose.observe(this) { response ->
             when(response){
                 is DownloadState.CurrentState -> {
-                    rvAdapter.setCommonData(response.state)
+                    val resp = response.state.reversed()
+                    rvAdapter.setCommonData(resp)
+                    rvAdapter.notifyDataSetChanged()
                     Log.d("Downloader3","CurrentState = ${response.state}")
                 }
                 is DownloadState.Error -> {
