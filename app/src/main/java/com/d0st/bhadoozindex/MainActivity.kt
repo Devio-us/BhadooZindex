@@ -11,6 +11,9 @@ import androidx.lifecycle.lifecycleScope
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
 import com.d0st.bhadoozindex.test.DownloadState
 import com.d0st.bhadoozindex.test.Downloader3
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
@@ -35,7 +38,6 @@ class MainActivity : AppCompatActivity() {
         is downloaded in bunch like 15 is downloaded then start download from 16
     */
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -52,7 +54,7 @@ class MainActivity : AppCompatActivity() {
                 vm.loadAndCancel(link.toString()) { onSuccess ->
                     initFetch()
 
-                    lifecycleScope.launch {
+                   lifecycleScope.launch {
                         if(link.toString().isEmpty()){
                             downloader.main(onSuccess, mb720,this@MainActivity)
                         }else {
@@ -79,7 +81,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.cancel.setOnClickListener {
-//            downloader.parentJob.cancel()
+
         }
 
     }
