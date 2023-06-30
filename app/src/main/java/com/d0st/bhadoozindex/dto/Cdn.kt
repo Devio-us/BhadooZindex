@@ -10,7 +10,3 @@ data class Cdn(
     val part_details:Map<String, String>,
     val sha256:String
 )
-@Serializable
-data class Parts(
-    val partNo:String,
-)

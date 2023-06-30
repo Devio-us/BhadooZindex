@@ -55,7 +55,8 @@ object Permission {
         ) {
 //            Toast.makeText(this, "Storage Permission Denied", Toast.LENGTH_LONG).show()
         } else if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Storage Permission Denied", Toast.LENGTH_LONG).show()
+//            Toast.makeText(this, "Storage Permission Denied", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Click Again", Toast.LENGTH_LONG).show()
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(permission),

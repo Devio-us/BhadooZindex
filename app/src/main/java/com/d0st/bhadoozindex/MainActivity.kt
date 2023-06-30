@@ -65,24 +65,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        binding.test.setOnClickListener {
-            val externalFilesDir = this.getExternalFilesDir("parts") // Get the application's internal storage directory
-            println("---external file dir ${externalFilesDir?.absolutePath}")
-            println("---external cache dir ${this.externalCacheDir}")
-            println("---cache dir ${this.cacheDir}")
-            val customFolder = File(externalFilesDir, "com.d0st.bhadoozindex")
-            if (!customFolder.exists()) {
-                println("------Create folder in data")
-                customFolder.mkdirs() // Create the folder if it doesn't exist
-            }
-            val file = File(customFolder, "Parts.txt") // Create the file within the custom folder
+//        binding.test.setOnClickListener {
+//            val externalFilesDir = this.getExternalFilesDir("parts") // Get the application's internal storage directory
+//            println("---external file dir ${externalFilesDir?.absolutePath}")
+//            println("---external cache dir ${this.externalCacheDir}")
+//            println("---cache dir ${this.cacheDir}")
+//            val customFolder = File(externalFilesDir, "com.d0st.bhadoozindex")
+//            if (!customFolder.exists()) {
+//                println("------Create folder in data")
+//                customFolder.mkdirs() // Create the folder if it doesn't exist
+//            }
+//            val file = File(customFolder, "Parts.txt") // Create the file within the custom folder
+//
+//            file.writeText("Hello, World!") //
+//        }
 
-            file.writeText("Hello, World!") //
-        }
-
-        binding.cancel.setOnClickListener {
-
-        }
+//        binding.cancel.setOnClickListener {
+//
+//        }
 
     }
 
@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity() {
         downloader.respose.observe(this) { response ->
             when(response){
                 is DownloadState.CurrentState -> {
-                    val resp = response.state.reversed()
+                    val resp = ArrayList(response.state).reversed()
                     rvAdapter.setCommonData(resp)
                     rvAdapter.notifyDataSetChanged()
                     Log.d("Downloader3","CurrentState = ${response.state}")

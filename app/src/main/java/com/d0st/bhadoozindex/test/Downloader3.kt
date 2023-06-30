@@ -105,7 +105,7 @@ class Downloader3 {
                 val jobs = mutableListOf<Job>()
                 for (partNumber in startIndex..endIndex) {
 
-                    currentState.add("Parts Downloading : ${partNumber+1}")
+                    currentState.add("Part Downloading : ${partNumber+1}")
                         .also {
                             _response.postValue(DownloadState.CurrentState(state = currentState))
                         }

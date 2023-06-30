@@ -1,0 +1,49 @@
+To improve the performance and parallel downloading of the code, you can make the following modifications:
+ 1. Use coroutines with  `async`  and  `await`  instead of  `launch` :
+   - Replace  `coroutineScope { launch { ... } }`  with  `coroutineScope { async { ... }.await() }` .
+   - This will allow parallel execution of parts merging and file joining.
+ 2. Use a  `Dispatchers.IO`  context for downloading and file operations:
+   - Modify the  `downloadParallelParts`  function to use  `Dispatchers.IO`  context for downloading the parts.
+   - Modify the  `joinFiles`  function to use  `Dispatchers.IO`  context for file merging.
+ 3. Use a thread pool for parallel downloading:
+   - Create a  `CoroutineDispatcher`  using  `newFixedThreadPoolContext`  with the desired number of threads.
+   - Modify the  `downloadParallelParts`  function to use this dispatcher for parallel downloading.
+ Here's the updated code:
+ 
+suspend fun main(Json: Cdn, url: String, ctx: Context) {
+    val batchSize = 5
+    val partCount = AtomicInteger(0)
+    currentState.add("Idle").also {
+        _response.postValue(DownloadState.CurrentState(state = currentState))
+    }
+     val externalCacheString = "${ctx.externalCacheDir}/Parts"
+    val externalCacheFolder = File(externalCacheString)
+    if (!externalCacheFolder.exists()) {
+        externalCacheFolder.mkdirs()
+    }
+     while (partCount.get() < Json.parts) {
+        val startIndex = partCount.getAndAdd(batchSize)
+        val endIndex = (startIndex + batchSize - 1).coerceAtMost(Json.parts - 1)
+        Log.d("Download3", "endIndex = $endIndex")
+        Log.d("Download3", "startIndex = $startIndex")
+         downloadParallelParts(startIndex, endIndex, url, externalCacheString)
+    }
+     currentState.add("*******************************").also {
+        _response.postValue(DownloadState.CurrentState(state = currentState))
+    }
+     coroutineScope {
+        val dispatcher = newFixedThreadPoolContext(batchSize, "Downloader")
+        val partsMergingJob = async(dispatcher) {
+            currentState.add("Parts Merging Start").also {
+                _response.postValue(DownloadState.CurrentState(state = currentState))
+            }
+            joinFiles("$externalCacheString/", "${outPath}${Json.name}")
+            currentState.add("File has Downloaded").also {
+                _response.postValue(DownloadState.CurrentState(state = currentState))
+            }
+        }
+        partsMergingJob.await()
+    }
+    // Log.d("Downloader3", "while Outer Called")
+}
+Note: Make sure to import the necessary packages for coroutines and other required classes/functions.
