@@ -37,6 +37,17 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/test" />
 
+    <Button
+        android:id="@+id/cancel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="20dp"
+        android:text="Cancel"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/get" />
+
     <!--    <Button-->
     <!--        android:id="@+id/pause"-->
     <!--        android:layout_width="match_parent"-->
@@ -70,7 +81,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/get"
+        app:layout_constraintTop_toBottomOf="@+id/cancel"
         tools:listitem="@layout/rv_challan_items" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

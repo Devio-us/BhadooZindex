@@ -90,6 +90,7 @@ class Downloader3 {
                     }
                     jobs.add(job)
                 }
+                println("-----------Jobs size - ${jobs.size}---------------")
                 jobs.joinAll()
             }
         } catch (e: Exception) {
@@ -101,7 +102,7 @@ class Downloader3 {
     }
 
     suspend fun main(Json: Cdn, url: String, ctx:Context) {
-        val batchSize = 5
+        val batchSize = 3
         val partCount = AtomicInteger(0)
         currentState.add("Idle").also {
             _response.postValue(DownloadState.CurrentState(state =  currentState))

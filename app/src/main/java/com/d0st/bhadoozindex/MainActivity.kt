@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
 import com.d0st.bhadoozindex.test.DownloadState
 import com.d0st.bhadoozindex.test.Downloader3
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -75,6 +76,10 @@ class MainActivity : AppCompatActivity() {
             val file = File(customFolder, "Parts.txt") // Create the file within the custom folder
 
             file.writeText("Hello, World!") //
+        }
+
+        binding.cancel.setOnClickListener {
+//            downloader.parentJob.cancel()
         }
 
     }
