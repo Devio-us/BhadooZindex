@@ -7,8 +7,8 @@ import android.view.View
 import androidx.lifecycle.MutableLiveData
 import com.d0st.bhadoozindex.Utils
 import com.d0st.bhadoozindex.dto.Cdn
+import com.kdownloader.KDownloader
 import com.tonyodev.fetch2.Download
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -28,42 +28,34 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-sealed class DownloadState {
-    data class CurrentState(val state: ArrayList<String>) : DownloadState()
-    data class Error(val message: String) : DownloadState()
+sealed class Download9State {
+    data class CurrentState(val state:ArrayList<String>) : Download9State()
+    data class Error(val message: String) : Download9State()
 }
 
-class Downloader3 {
+class Downloader9 {
 
     private val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
     private val timeOutPartList = mutableListOf<Int>()
-    private var _response = MutableLiveData<DownloadState>()
+    private var _response = MutableLiveData<Download9State>()
     val respose = _response
     private val currentState = ArrayList<String>()
-    private val runningRequest = ArrayList<Int>()
 
-    private suspend fun okHttp(
-        start: Int,
-        end: Int,
-        partNumber: Int,
-        url: String
-    ): List<ByteArray> =
+     private suspend fun okHttp(start: Int, end: Int, partNumber: Int, url: String): List<ByteArray> =
         coroutineScope {
-            println("Part Start Download = $partNumber")
 
             val chunks = mutableListOf<ByteArray>()
             val client = OkHttpClient.Builder()
                 .connectionPool(ConnectionPool())
-//                .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
-                .callTimeout(5, TimeUnit.MINUTES)
+                .addInterceptor(HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BASIC))
+                .callTimeout(5,TimeUnit.MINUTES)
                 .build()
 
             val urll = "$url.part$partNumber"
 
-             launch(Dispatchers.IO) {
+            launch(Dispatchers.IO) {
                 val requests = Request.Builder()
                     .url(urll)
-                    .tag(partNumber)
                     .build()
 
                 try {
@@ -72,13 +64,12 @@ class Downloader3 {
                     }
 //                    println("Downloaded: $partNumber")
                     chunks.add(response)
-                    currentState.add("Downloaded : $partNumber")
-                        .also { _response.postValue(DownloadState.CurrentState(state = currentState)) }
+                    currentState.add("Downloaded : $partNumber").also { _response.postValue(Download9State.CurrentState(state =  currentState)) }
 
                 } catch (e: Exception) {
                     timeOutPartList.add(partNumber)
                     currentState.add("Part Download Error : $partNumber = ${e.message}").also {
-                        _response.postValue(DownloadState.CurrentState(state = currentState))
+                        _response.postValue(Download9State.CurrentState(state =  currentState))
                     }
                     Log.wtf("Downloader3", "okHttp Error $partNumber = ${e.message}")
                 }
@@ -87,31 +78,14 @@ class Downloader3 {
 
         }
 
-
-    private suspend fun downloadParallelParts(
-        startIndex: Int,
-        endIndex: Int,
-        url: String,
-        externalCacheDir: String
-    ) {
+    private suspend fun downloadParallelParts(startIndex: Int, endIndex: Int,url: String,externalCacheDir:String) {
         try {
             coroutineScope {
 
-                runningRequest.add(startIndex + 1)
-                runningRequest.add(endIndex + 1)
-
-                println("Request = ${runningRequest.first()}, ${runningRequest.last()}")
-
                 val jobs = mutableListOf<Job>()
                 for (partNumber in startIndex..endIndex) {
-
-                    currentState.add("Part Downloading : ${partNumber+1}")
-                        .also {
-                            _response.postValue(DownloadState.CurrentState(state = currentState))
-                        }
-
                     val job = launch {
-                        val part = okHttp(startIndex, endIndex, partNumber + 1, url)
+                        val part = okHttp(startIndex, endIndex, partNumber + 1,url)
                         val file = File("$externalCacheDir/${partNumber + 1}.bin")
                         part.forEach { file.appendBytes(it) }
                     }
@@ -122,30 +96,23 @@ class Downloader3 {
             }
         } catch (e: Exception) {
             currentState.add("Parallel Download Error = $e").also {
-                _response.postValue(DownloadState.CurrentState(state = currentState))
+                _response.postValue(Download9State.CurrentState(state =  currentState))
             }
             Log.wtf("Downloader3", "Parallel Error = $e")
         }
     }
 
-    suspend fun main(Json: Cdn, url: String, ctx: Context) {
-        val batchSize = 5
+    suspend fun main(Json: Cdn, url: String, ctx:Context,kDownloader:KDownloader) {
+        val batchSize = 3
         val partCount = AtomicInteger(0)
         currentState.add("Idle").also {
-            _response.postValue(DownloadState.CurrentState(state = currentState))
+            _response.postValue(Download9State.CurrentState(state =  currentState))
         }
 
         val externalCacheString = "${ctx.externalCacheDir}/Parts"
         val externalCacheFolder = File(externalCacheString)
-        if (!externalCacheFolder.exists()) {
+        if (!externalCacheFolder.exists()){
             externalCacheFolder.mkdirs()
-        }
-
-        val files = externalCacheFolder.listFiles()
-        files?.forEach { file ->
-            if (file.isFile) {
-                file.delete()
-            }
         }
 
         while (partCount.get() < Json.parts) {
@@ -153,23 +120,24 @@ class Downloader3 {
             val endIndex = (startIndex + batchSize - 1).coerceAtMost(Json.parts - 1)
             Log.d("Download3", "endIndex = $endIndex")
             Log.d("Download3", "startIndex = $startIndex")
-
-            downloadParallelParts(startIndex, endIndex, url, externalCacheString)
+            currentState.add("Parts Downloading : ${startIndex+1} to ${endIndex+1}").also {
+                _response.postValue(Download9State.CurrentState(state =  currentState))
+            }
+            downloadParallelParts(startIndex, endIndex,url,externalCacheString)
         }
 
-
         currentState.add("*******************************").also {
-            _response.postValue(DownloadState.CurrentState(state = currentState))
+            _response.postValue(Download9State.CurrentState(state =  currentState))
         }
 
         coroutineScope {
             launch {
                 currentState.add("Parts Merging Start").also {
-                    _response.postValue(DownloadState.CurrentState(state = currentState))
+                    _response.postValue(Download9State.CurrentState(state =  currentState))
                 }
                 joinFiles("$externalCacheString/", "${outPath}${Json.name}")
                 currentState.add("File has Downloaded").also {
-                    _response.postValue(DownloadState.CurrentState(state = currentState))
+                    _response.postValue(Download9State.CurrentState(state =  currentState))
                 }
             }
         }
@@ -178,7 +146,7 @@ class Downloader3 {
 
 //    class FileJoiner(private val inputDir: String, private val outputFile: String) {
 
-    /*V1*/
+        /*V1*/
 //        suspend fun joinFiles() = withContext(Dispatchers.IO) {
 //            try {
 //                val dir = File(inputDir)
@@ -204,7 +172,7 @@ class Downloader3 {
 //            }
 //        }
 
-    /*V2 GPT*/
+        /*V2 GPT*/
 //        suspend fun joinFiles() = withContext(Dispatchers.IO) {
 //            try {
 //                val dir = File(inputDir)
@@ -229,7 +197,7 @@ class Downloader3 {
 //        }
 
 
-    /*V3 Bito*/
+        /*V3 Bito*/
 //        suspend fun joinFiles() = withContext(Dispatchers.IO) {
 //            try {
 //                val dir = File(inputDir)
@@ -255,39 +223,37 @@ class Downloader3 {
 //            }
 //        }
 
-    /*V4 Gpt */
-    /*        suspend fun joinFiles() = withContext(Dispatchers.IO) {
-                try {
-                    val dir = File(inputDir)
-                    val files = dir.listFiles { _, name -> name.endsWith(".mkv") }
-                    val out = FileOutputStream(outputFile)
-                    files?.sortedBy { it.nameWithoutExtension.toInt() }?.forEach { file ->
-                        Log.d("Downloader3", "files = $file")
-                        FileInputStream(file).use { input ->
-                            input.copyTo(out)
-    //                        input.close()
+        /*V4 Gpt */
+        /*        suspend fun joinFiles() = withContext(Dispatchers.IO) {
+                    try {
+                        val dir = File(inputDir)
+                        val files = dir.listFiles { _, name -> name.endsWith(".mkv") }
+                        val out = FileOutputStream(outputFile)
+                        files?.sortedBy { it.nameWithoutExtension.toInt() }?.forEach { file ->
+                            Log.d("Downloader3", "files = $file")
+                            FileInputStream(file).use { input ->
+                                input.copyTo(out)
+        //                        input.close()
+                            }
+
+                            file.delete()
                         }
-
-                        file.delete()
+                        out.close()
+                        Log.d("Downloader3", "Complete Merging")
+                    } catch (e: Exception) {
+                        Log.wtf("Downloader3", "File Merging Error = ${e.message}")
                     }
-                    out.close()
-                    Log.d("Downloader3", "Complete Merging")
-                } catch (e: Exception) {
-                    Log.wtf("Downloader3", "File Merging Error = ${e.message}")
-                }
-            }*/
+                }*/
 
-    /*V5 GPT*/
-    private suspend fun joinFiles(inputDir: String, outputFile: String) =
-        withContext(Dispatchers.IO) {
+        /*V5 GPT*/
+        private suspend fun joinFiles(inputDir: String, outputFile: String) = withContext(Dispatchers.IO) {
             try {
                 val dir = File(inputDir)
                 val files = dir.listFiles { _, name -> name.endsWith(".bin") }
                 val out = FileOutputStream(outputFile)
                 files?.sortedBy { it.nameWithoutExtension.toInt() }?.forEach { file ->
 //                    Log.d("Downloader3", "Sorted files = $file")
-                    val input =
-                        FileInputStream(file).buffered()  // Default Buffer Size - 8192 (8 * 1024)
+                    val input = FileInputStream(file).buffered()  // Default Buffer Size - 8192 (8 * 1024)
                     input.copyTo(out)
                     input.close()
                     file.delete()
@@ -300,6 +266,7 @@ class Downloader3 {
         }
 
 //    }
+
 
 
 }

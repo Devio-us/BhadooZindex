@@ -2,12 +2,16 @@ package com.d0st.bhadoozindex
 
 import android.app.Application
 import android.util.Log
+import com.kdownloader.KDownloader
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class App :Application() {
 
+    lateinit var kDownloader: KDownloader
+
     override fun onCreate() {
+        kDownloader = KDownloader.create(applicationContext)
         super.onCreate()
     }
 

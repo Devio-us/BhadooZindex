@@ -76,5 +76,7 @@ dependencies {
     implementation 'androidx.tonyodev.fetch2:xfetch2:3.1.6'
     implementation "androidx.tonyodev.fetch2okhttp:xfetch2okhttp:3.1.6"
 
+    implementation 'com.github.varungulatii:Kdownloader:1.0.3'
+
 
 }

@@ -9,8 +9,12 @@ import androidx.appcompat.app.AppCompatActivity
 
 import androidx.lifecycle.lifecycleScope
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
+import com.d0st.bhadoozindex.test.Download9State
 import com.d0st.bhadoozindex.test.DownloadState
 import com.d0st.bhadoozindex.test.Downloader3
+import com.d0st.bhadoozindex.test.Downloader8
+import com.d0st.bhadoozindex.test.Downloader9
+import com.kdownloader.KDownloader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,7 +36,9 @@ class MainActivity : AppCompatActivity() {
     //    "http://storage.zindex.eu.org/"
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
     private lateinit var rvAdapter: StateAdapter
-    private val downloader = Downloader3()
+//    private val downloader = Downloader3()
+    private val downloader = Downloader9()
+    private lateinit var kDownloader: KDownloader
 
     /*  Pause Algorithm = First Check Which bunch is currently downloading if 15 to 20 bunch is in process then pause download and check which file
         is downloaded in bunch like 15 is downloaded then start download from 16
@@ -42,6 +48,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        kDownloader = (applicationContext as App).kDownloader
 
         rvAdapter = StateAdapter()
         binding.rvList.adapter = rvAdapter
@@ -54,13 +62,17 @@ class MainActivity : AppCompatActivity() {
                 vm.loadAndCancel(link.toString()) { onSuccess ->
                     initFetch()
 
-                   lifecycleScope.launch {
-                        if(link.toString().isEmpty()){
-                            downloader.main(onSuccess, mb720,this@MainActivity)
-                        }else {
-                            downloader.main(onSuccess, link.toString(),this@MainActivity)
-                        }
+                    lifecycleScope.launch {
+                        downloader.main(onSuccess, mb720,this@MainActivity,kDownloader)
                     }
+
+//                   lifecycleScope.launch {
+//                        if(link.toString().isEmpty()){
+//                            downloader.main(onSuccess, mb720,this@MainActivity)
+//                        }else {
+//                            downloader.main(onSuccess, link.toString(),this@MainActivity)
+//                        }
+//                    }
                 }
             }
         }
@@ -91,13 +103,13 @@ class MainActivity : AppCompatActivity() {
         Log.d("Downloader3","InitFetch Called")
         downloader.respose.observe(this) { response ->
             when(response){
-                is DownloadState.CurrentState -> {
+                is Download9State.CurrentState -> {
                     val resp = ArrayList(response.state).reversed()
                     rvAdapter.setCommonData(resp)
                     rvAdapter.notifyDataSetChanged()
                     Log.d("Downloader3","CurrentState = ${response.state}")
                 }
-                is DownloadState.Error -> {
+                is Download9State.Error -> {
                     Log.wtf("Downloader3","DownloadState Error ${response.message}")
                 }
             }
