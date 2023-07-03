@@ -18,6 +18,7 @@ import okhttp3.Request
 import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 sealed class DownloadState {
@@ -38,6 +39,7 @@ class HmViewModel @Inject constructor() : ViewModel() {
 
     private val client = OkHttpClient.Builder()
         .addInterceptor(logging)
+        .callTimeout(5, TimeUnit.MINUTES)
         .build()
     private var _response = MutableLiveData<DownloadState>()
     val respose = _response

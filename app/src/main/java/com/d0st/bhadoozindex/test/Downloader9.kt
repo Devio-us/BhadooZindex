@@ -123,7 +123,13 @@ class Downloader9 {
             currentState.add("Parts Downloading : ${startIndex+1} to ${endIndex+1}").also {
                 _response.postValue(Download9State.CurrentState(state =  currentState))
             }
-            downloadParallelParts(startIndex, endIndex,url,externalCacheString)
+
+            for (partNumber in startIndex..endIndex) {
+                    val part = okHttp(startIndex, endIndex, partNumber + 1,url)
+                    val file = File("$externalCacheString/${partNumber + 1}.bin")
+//                    part.forEach { file.appendBytes(it) }
+            }
+
         }
 
         currentState.add("*******************************").also {
@@ -141,7 +147,6 @@ class Downloader9 {
                 }
             }
         }
-//        Log.d("Downloader3", "while Outer Called")
     }
 
 //    class FileJoiner(private val inputDir: String, private val outputFile: String) {

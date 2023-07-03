@@ -6,39 +6,56 @@ import android.os.Environment
 import android.util.Log
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.MutableLiveData
 
 import androidx.lifecycle.lifecycleScope
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
+import com.d0st.bhadoozindex.dto.Cdn
 import com.d0st.bhadoozindex.test.Download9State
 import com.d0st.bhadoozindex.test.DownloadState
-import com.d0st.bhadoozindex.test.Downloader3
-import com.d0st.bhadoozindex.test.Downloader8
 import com.d0st.bhadoozindex.test.Downloader9
 import com.kdownloader.KDownloader
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.util.concurrent.atomic.AtomicInteger
 
+const val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
+const val mb720 = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
+const val gb3_13 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
+sealed class KState {
+    object IdleState:KState()
+    data class RequestCompleted(val state: ArrayList<Map<Int,com.kdownloader.internal.DownloadRequest>>) : KState()
+    data class Error(val message: String) : KState()
+}
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+    }
 
     private val vm: HmViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
 
 
-    val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
-    val mb720 = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
-    private val gb3_13 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
-
     //    "http://storage.zindex.eu.org/"
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
     private lateinit var rvAdapter: StateAdapter
+    private lateinit var kAdapter: kAdapter
 //    private val downloader = Downloader3()
     private val downloader = Downloader9()
+
     private lateinit var kDownloader: KDownloader
+    lateinit var dirPath: String
+
+    private var _kResponse = MutableLiveData<KState>()
+    val respose = _kResponse
+
 
     /*  Pause Algorithm = First Check Which bunch is currently downloading if 15 to 20 bunch is in process then pause download and check which file
         is downloaded in bunch like 15 is downloaded then start download from 16
@@ -50,9 +67,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         kDownloader = (applicationContext as App).kDownloader
+        dirPath = Environment.getExternalStorageDirectory().path + "/Download"
+
 
         rvAdapter = StateAdapter()
-        binding.rvList.adapter = rvAdapter
+        kAdapter = kAdapter()
+        kAdapter.kDownloader = kDownloader
+//        binding.rvList.adapter = rvAdapter
+        binding.kList.adapter = kAdapter
 
         val link = binding.link.text
         binding.get.setOnClickListener {
@@ -63,13 +85,14 @@ class MainActivity : AppCompatActivity() {
                     initFetch()
 
                     lifecycleScope.launch {
-                        downloader.main(onSuccess, mb720,this@MainActivity,kDownloader)
+//                        downloader.main(onSuccess, mb720,this@MainActivity,kDownloader)
+                        kDownloader(onSuccess)
                     }
 
 //                   lifecycleScope.launch {
 //                        if(link.toString().isEmpty()){
 //                            downloader.main(onSuccess, mb720,this@MainActivity)
-//                        }else {
+//                        } else {
 //                            downloader.main(onSuccess, link.toString(),this@MainActivity)
 //                        }
 //                    }
@@ -97,40 +120,83 @@ class MainActivity : AppCompatActivity() {
 //        }
 
     }
+    private val requests = ArrayList<Map<Int,com.kdownloader.internal.DownloadRequest>>()
+
+   suspend fun kDownloader(Json:Cdn){
+
+        val batchSize = 3
+        val partCount = AtomicInteger(0)
+        _kResponse.postValue(KState.IdleState)
+
+        while (partCount.get() < 2) {
+            val startIndex = partCount.getAndAdd(batchSize)
+            val endIndex = (startIndex + batchSize - 1).coerceAtMost(2 - 1)
+            Log.d("kDownloader", "startIndex = ${startIndex + 1}")
+            Log.d("kDownloader", "endIndex = ${endIndex+1}")
+
+            for (partNumber in startIndex..endIndex) {
+
+                val request = kDownloader.newRequestBuilder(
+                    "$mb720.part${partNumber + 1}", outPath, "$partNumber.mp4",
+                ).tag(TAG + "1").build()
+
+                requests.add(mapOf(partNumber+1 to request))
+
+            }
+        }
+
+        coroutineScope {
+            launch {
+                joinFiles(outPath, "${outPath}${Json.name}")
+
+            }
+        }
+
+
+        Log.d("kDownloader","Create Download")
+        _kResponse.postValue(KState.RequestCompleted(requests))
+
+    }
+
+    private suspend fun joinFiles(inputDir: String, outputFile: String) =
+        withContext(Dispatchers.IO) {
+            try {
+                val dir = File(inputDir)
+                val files = dir.listFiles { _, name -> name.endsWith(".bin") }
+                val out = FileOutputStream(outputFile)
+                files?.sortedBy { it.nameWithoutExtension.toInt() }?.forEach { file ->
+                    Log.d("Downloader3", "Sorted files = $file")
+                    val input =
+                        FileInputStream(file).buffered()  // Default Buffer Size - 8192 (8 * 1024)
+                    input.copyTo(out)
+                    input.close()
+                    file.delete()
+                }
+                out.close()
+//                Log.d("Downloader3", "Complete Merging")
+            } catch (e: Exception) {
+//                Log.wtf("Downloader3", "File Merging Error = ${e.message}")
+            }
+        }
 
     @SuppressLint("NotifyDataSetChanged")
     private fun initFetch() {
         Log.d("Downloader3","InitFetch Called")
-        downloader.respose.observe(this) { response ->
+        respose.observe(this) { response ->
             when(response){
-                is Download9State.CurrentState -> {
-                    val resp = ArrayList(response.state).reversed()
-                    rvAdapter.setCommonData(resp)
-                    rvAdapter.notifyDataSetChanged()
-                    Log.d("Downloader3","CurrentState = ${response.state}")
+                is KState.IdleState -> {
+
+                    Log.d("KState","IdleState")
                 }
-                is Download9State.Error -> {
-                    Log.wtf("Downloader3","DownloadState Error ${response.message}")
+                is KState.RequestCompleted -> {
+                     kAdapter.setCommonData(response.state)
+                    kAdapter.notifyDataSetChanged()
+                }
+                is KState.Error -> {
+                    Log.wtf("KState","DownloadState Error ${response.message}")
                 }
             }
-
-//            when (response) {
-//                is Resource.Success -> {
-//                    UiHelper.loadingDialogBuilder.dismissSafe()
-//                    response.data?.data?.let {
-//                        rvAdapter.setCommonData(it)
-//                    }
-//                }
-//                is Resource.Error -> {
-//                    UiHelper.loadingDialogBuilder.dismissSafe()
-//                    Toast.makeText(requireContext(), response.message, Toast.LENGTH_LONG).show()
-//                }
-//                is Resource.Loading -> {
-//                    UiHelper.loadingDialog(requireContext())
-//                }
-//            }
         }
-
     }
 
 }

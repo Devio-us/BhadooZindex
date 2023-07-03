@@ -1,6 +1,7 @@
 package com.d0st.bhadoozindex
 
 import androidx.recyclerview.widget.DiffUtil
+import com.kdownloader.internal.DownloadRequest
 
 class CommonDiff<T>(
     private val oldList: List<T>,

@@ -32,18 +32,18 @@ class StateAdapter : RecyclerView.Adapter<StateAdapter.ViewHolder>() {
         return mList.size
     }
 
-    fun setCommonData(newData: List<String>) {
-//        Log.wtf("StateAdapter", newData.toString())
-
-        val movieDiffUtil = CommonDiff(mList, newData)
-
-        val diffUtilResult = DiffUtil.calculateDiff(movieDiffUtil)
-
-//        mList.clear()
-        mList = newData
-
-        diffUtilResult.dispatchUpdatesTo(this)
-    }
+//    fun setCommonData(newData: List<String>) {
+////        Log.wtf("StateAdapter", newData.toString())
+//
+//        val movieDiffUtil = CommonDiff(mList, newData)
+//
+//        val diffUtilResult = DiffUtil.calculateDiff(movieDiffUtil)
+//
+////        mList.clear()
+//        mList = newData
+//
+//        diffUtilResult.dispatchUpdatesTo(this)
+//    }
 
 }
 
