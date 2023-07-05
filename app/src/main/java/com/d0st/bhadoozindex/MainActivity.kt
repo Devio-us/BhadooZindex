@@ -7,10 +7,8 @@ import android.os.Environment
 import android.util.Log
 import android.view.View
 import androidx.activity.viewModels
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
-
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -22,6 +20,7 @@ import com.d0st.bhadoozindex.test.Downloader3
 import com.d0st.bhadoozindex.test.Downloader9
 import com.d0st.bhadoozindex.utils.ActionListener
 import com.d0st.bhadoozindex.utils.DwnAdapter
+import com.d0st.bhadoozindex.utils.DwnHelper.getConfiguration
 import com.d0st.bhadoozindex.utils.DwnHelper.startDownload
 import com.kdownloader.KDownloader
 import com.tonyodev.fetch2.AbstractFetchListener
@@ -95,45 +94,57 @@ class MainActivity : AppCompatActivity(), ActionListener {
         rvAdapter = StateAdapter()
         kAdapter = kAdapter()
         kAdapter.kDownloader = kDownloader
-//        binding.rvList.adapter = rvAdapter
+        binding.rvList.adapter = rvAdapter
 //        binding.kList.adapter = kAdapter
 
         val link = binding.link.text
-        binding.get.setOnClickListener {
-
+        binding.okHttpGet.setOnClickListener {
+            binding.fetchList.visibility = View.GONE
+            binding.fetch.visibility = View.GONE
+            binding.join.visibility = View.GONE
             Permission.verifyStoragePermission(this) {
-
                 vm.loadAndCancel(link.toString()) { onSuccess ->
                     initFetch()
-
-                    lifecycleScope.launch {
-//                        downloader.main(onSuccess, mb720,this@MainActivity,kDownloader)
-                        fetchDownloader(onSuccess)
+                   lifecycleScope.launch {
+                        if(link.toString().isEmpty()){
+                            downloader.main(onSuccess, mb720,this@MainActivity)
+                        } else {
+                            downloader.main(onSuccess, link.toString(),this@MainActivity)
+                        }
                     }
-
-//                   lifecycleScope.launch {
-//                        if(link.toString().isEmpty()){
-//                            downloader.main(onSuccess, mb720,this@MainActivity)
-//                        } else {
-//                            downloader.main(onSuccess, link.toString(),this@MainActivity)
-//                        }
-//                    }
                 }
             }
         }
 
-        setUpViews()
-        val fetchConfiguration: FetchConfiguration = FetchConfiguration.Builder(this)
-            .setDownloadConcurrentLimit(1)
-            .enableHashCheck(true)
-            .setGlobalNetworkType(NetworkType.ALL)
-            .enableFileExistChecks(true)
-            .enableRetryOnNetworkGain(true)
-            .setHttpDownloader(OkHttpDownloader(Downloader.FileDownloaderType.PARALLEL))
-            .setNamespace(fetchNamespace)
-            .build()
+        binding.fetch.setOnClickListener {
+            binding.okHttpGet.visibility = View.GONE
+            binding.rvList.visibility = View.GONE
+            vm.loadAndCancel(link.toString()) { onSuccess ->
+                lifecycleScope.launch {
+                    fetchDownloader(onSuccess)
+                }
+            }
+        }
 
-        fetch = Fetch.getInstance(fetchConfiguration)
+        binding.join.setOnClickListener {
+            lifecycleScope.launch {
+                joinFiles(outPath, "${outPath}Test.mkv")
+
+            }
+        }
+
+        setUpViews()
+//        val fetchConfigurationnnn: FetchConfiguration = FetchConfiguration.Builder(this)
+//            .setDownloadConcurrentLimit(3)
+////            .enableHashCheck(true)
+//            .setGlobalNetworkType(NetworkType.ALL)
+//            .enableFileExistChecks(true)
+//            .enableRetryOnNetworkGain(true)
+//            .setHttpDownloader(OkHttpDownloader(Downloader.FileDownloaderType.PARALLEL))
+//            .setNamespace(fetchNamespace)
+//            .build()
+
+        fetch = Fetch.Impl.getInstance(getConfiguration(this))
 
 //        binding.test.setOnClickListener {
 //            val externalFilesDir = this.getExternalFilesDir("parts") // Get the application's internal storage directory
@@ -157,26 +168,28 @@ class MainActivity : AppCompatActivity(), ActionListener {
     }
     private val requests = ArrayList<Map<Int,com.kdownloader.internal.DownloadRequest>>()
 
-   suspend fun fetchDownloader(Json:Cdn){
+   fun fetchDownloader(Json:Cdn){
 
         val batchSize = 3
-        val partCount = AtomicInteger(0)
+        val partCount = AtomicInteger(1)
 
-        while (partCount.get() < 5) {
+        while (partCount.get() < Json.parts) {
             val startIndex = partCount.getAndAdd(batchSize)
-            val endIndex = (startIndex + batchSize - 1).coerceAtMost(5 - 1)
-            Log.d("kDownloader", "startIndex = ${startIndex + 1}")
-            Log.d("kDownloader", "endIndex = ${endIndex+1}")
+            val endIndex = (startIndex + batchSize - 1).coerceAtMost(5)
+            Log.d("kDownloader", "startIndex = ${startIndex}")
+            Log.d("kDownloader", "endIndex = ${endIndex}")
 
             for (partNumber in startIndex..endIndex) {
 
-                startDownload(this@MainActivity,binding.root,"${partNumber+1}.mp4","$mb720.part${partNumber + 1}")
+                startDownload(this@MainActivity,binding.root,"${partNumber}.bin","$mb720.part${partNumber}","${startIndex}${endIndex}".toInt())
 
 //                requests.add(mapOf(partNumber+1 to request))
 
             }
         }
-        Log.d("kDownloader","Create Download")
+       fetchDownloads()
+
+       Log.d("kDownloader","Create Download")
 
     }
 
@@ -187,9 +200,7 @@ class MainActivity : AppCompatActivity(), ActionListener {
         recyclerView!!.adapter = fileAdapter
     }
 
-    @RequiresApi(Build.VERSION_CODES.N)
-    override fun onResume() {
-        super.onResume()
+    private fun fetchDownloads(){
         fetch?.getDownloads { downloads ->
             val list: java.util.ArrayList<Download> = java.util.ArrayList(downloads)
             Collections.sort(list, Comparator.comparingLong(Download::created))
@@ -223,6 +234,7 @@ class MainActivity : AppCompatActivity(), ActionListener {
         }
 
         override fun onCompleted(download: Download) {
+            println("complete grp= ${download.group} complete url = ${download.url}")
             fileAdapter!!.update(
                 download,
                 unknownRemainingTime,
@@ -355,7 +367,7 @@ class MainActivity : AppCompatActivity(), ActionListener {
         }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun initFetch() {
+    private fun kInitFetch() {
         Log.d("Downloader3","InitFetch Called")
         respose.observe(this) { response ->
             when(response){
@@ -369,6 +381,25 @@ class MainActivity : AppCompatActivity(), ActionListener {
                 }
                 is KState.Error -> {
                     Log.wtf("KState","DownloadState Error ${response.message}")
+                }
+            }
+        }
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private fun initFetch() {
+        Log.d("Downloader3", "InitFetch Called")
+        downloader.respose.observe(this) { response ->
+            when (response) {
+                is DownloadState.CurrentState -> {
+                    val resp = ArrayList(response.state).reversed()
+                    rvAdapter.setCommonData(resp)
+                    rvAdapter.notifyDataSetChanged()
+                    Log.d("Downloader3", "CurrentState = ${response.state}")
+                }
+
+                is DownloadState.Error -> {
+                    Log.wtf("Downloader3", "DownloadState Error ${response.message}")
                 }
             }
         }

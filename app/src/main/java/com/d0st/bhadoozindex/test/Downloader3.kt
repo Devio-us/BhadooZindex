@@ -1,6 +1,7 @@
 package com.d0st.bhadoozindex.test
 
 import android.content.Context
+import android.icu.math.BigDecimal
 import android.os.Environment
 import android.util.Log
 import android.view.View
@@ -46,7 +47,8 @@ class Downloader3 {
         start: Int,
         end: Int,
         partNumber: Int,
-        url: String
+        url: String,
+        totalSize: Long // Total size in bytes
     ): List<ByteArray> =
         coroutineScope {
             println("Part Start Download = $partNumber")
@@ -59,6 +61,7 @@ class Downloader3 {
                 .build()
 
             val urll = "$url.part$partNumber"
+            var totalBytesDownloaded = 0L // Variable to keep track of the total bytes downloaded
 
              launch(Dispatchers.IO) {
                 val requests = Request.Builder()
@@ -68,9 +71,9 @@ class Downloader3 {
 
                 try {
                     val response = client.newCall(requests).execute().use { response ->
+//                        println("Size: ${response}")
                         response.body.bytes()
                     }
-//                    println("Downloaded: $partNumber")
                     chunks.add(response)
                     currentState.add("Downloaded : $partNumber")
                         .also { _response.postValue(DownloadState.CurrentState(state = currentState)) }
@@ -87,32 +90,41 @@ class Downloader3 {
 
         }
 
+    fun calculateDownloadProgress(totalSize: Double, downloadedBeats: Double): String {
+        val downloadedPercentage = (downloadedBeats / totalSize) * 100
+        val downloadedMB = (downloadedBeats / 1024).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+        val totalGB = (totalSize / 1024).toBigDecimal().setScale(2, BigDecimal.ROUND_HALF_UP)
+
+        return "$downloadedMB MB of $totalGB GB was downloaded (${downloadedPercentage.toInt()}%)"
+    }
+
 
     private suspend fun downloadParallelParts(
         startIndex: Int,
         endIndex: Int,
         url: String,
-        externalCacheDir: String
+        externalCacheDir: String,
+        totalSize: Long // Total size in bytes
     ) {
         try {
             coroutineScope {
 
-                runningRequest.add(startIndex + 1)
-                runningRequest.add(endIndex + 1)
+                runningRequest.add(startIndex)
+                runningRequest.add(endIndex)
 
                 println("Request = ${runningRequest.first()}, ${runningRequest.last()}")
 
                 val jobs = mutableListOf<Job>()
                 for (partNumber in startIndex..endIndex) {
 
-                    currentState.add("Part Downloading : ${partNumber+1}")
+                    currentState.add("Part Downloading : ${partNumber}")
                         .also {
                             _response.postValue(DownloadState.CurrentState(state = currentState))
                         }
 
                     val job = launch {
-                        val part = okHttp(startIndex, endIndex, partNumber + 1, url)
-                        val file = File("$externalCacheDir/${partNumber + 1}.bin")
+                        val part = okHttp(startIndex, endIndex, partNumber, url,totalSize)
+                        val file = File("$externalCacheDir/${partNumber}.bin")
                         part.forEach { file.appendBytes(it) }
                     }
                     jobs.add(job)
@@ -130,7 +142,7 @@ class Downloader3 {
 
     suspend fun main(Json: Cdn, url: String, ctx: Context) {
         val batchSize = 5
-        val partCount = AtomicInteger(0)
+        val partCount = AtomicInteger(1)
         currentState.add("Idle").also {
             _response.postValue(DownloadState.CurrentState(state = currentState))
         }
@@ -150,11 +162,11 @@ class Downloader3 {
 
         while (partCount.get() < Json.parts) {
             val startIndex = partCount.getAndAdd(batchSize)
-            val endIndex = (startIndex + batchSize - 1).coerceAtMost(Json.parts - 1)
-            Log.d("Download3", "endIndex = $endIndex")
+            val endIndex = (startIndex + batchSize - 1).coerceAtMost(Json.parts)
             Log.d("Download3", "startIndex = $startIndex")
+            Log.d("Download3", "endIndex = $endIndex")
 
-            downloadParallelParts(startIndex, endIndex, url, externalCacheString)
+            downloadParallelParts(startIndex, endIndex, url, externalCacheString,Json.size)
         }
 
 

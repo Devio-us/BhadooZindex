@@ -59,10 +59,10 @@
 <!--        app:layout_constraintTop_toBottomOf="@+id/outline_edit_text_link" />-->
 
     <Button
-        android:id="@+id/get"
+        android:id="@+id/okHttpGet"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Get"
+        android:text="okHttp"
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="10dp"
         android:backgroundTint="#09953C"
@@ -70,26 +70,26 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/outline_edit_text_link" />
 
-<!--    <Button-->
-<!--        android:id="@+id/cancel"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:paddingTop="20dp"-->
-<!--        android:text="Cancel"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintHorizontal_bias="0.5"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintTop_toBottomOf="@+id/get" />-->
+    <Button
+        android:id="@+id/fetch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="20dp"
+        android:text="Fetch"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/okHttpGet" />
 
-    <!--    <Button-->
-    <!--        android:id="@+id/pause"-->
-    <!--        android:layout_width="match_parent"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        android:paddingTop="20dp"-->
-    <!--        android:text="Pause"-->
-    <!--        app:layout_constraintEnd_toEndOf="parent"-->
-    <!--        app:layout_constraintStart_toStartOf="parent"-->
-    <!--        app:layout_constraintTop_toBottomOf="@+id/get" />-->
+        <Button
+            android:id="@+id/join"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="20dp"
+            android:text="join"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/fetch" />
     <!--    <Button-->
     <!--        android:id="@+id/resume"-->
     <!--        android:layout_width="match_parent"-->
@@ -101,21 +101,21 @@
     <!--        app:layout_constraintTop_toBottomOf="@+id/pause" />-->
 
 
-<!--    <androidx.recyclerview.widget.RecyclerView-->
-<!--        android:id="@+id/rv_list"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="0dp"-->
-<!--        android:clipToPadding="false"-->
-<!--        android:orientation="vertical"-->
-<!--        android:overScrollMode="never"-->
-<!--        android:paddingTop="5dp"-->
-<!--        android:paddingBottom="80dp"-->
-<!--        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"-->
-<!--        app:layout_constraintBottom_toBottomOf="parent"-->
-<!--        app:layout_constraintEnd_toEndOf="parent"-->
-<!--        app:layout_constraintStart_toStartOf="parent"-->
-<!--        app:layout_constraintTop_toBottomOf="@+id/get"-->
-<!--        tools:listitem="@layout/rv_challan_items" />-->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:orientation="vertical"
+        android:overScrollMode="never"
+        android:paddingTop="5dp"
+        android:paddingBottom="80dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/join"
+        tools:listitem="@layout/rv_challan_items" />
 
 <!--    <androidx.recyclerview.widget.RecyclerView-->
 <!--        android:id="@+id/k_list"-->
@@ -135,13 +135,12 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/fetch_list"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginHorizontal="7dp"
-        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/get"/>
+        app:layout_constraintTop_toBottomOf="@+id/join" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

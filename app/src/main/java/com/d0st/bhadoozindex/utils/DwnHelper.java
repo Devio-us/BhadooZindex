@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -26,38 +27,43 @@ import java.text.DecimalFormat;
 
 public class DwnHelper {
 
+    public static FetchConfiguration getConfiguration (Context context){
+        return new FetchConfiguration.Builder(context)
+                .setDownloadConcurrentLimit(5)
+                .setProgressReportingInterval(3000)
+//              .enableHashCheck(true)
+                .createDownloadFileOnEnqueue(false)
+                .enableLogging(true)
+                .setGlobalNetworkType(NetworkType.ALL)
+                .enableFileExistChecks(true)
+                .enableRetryOnNetworkGain(true)
+                .setHttpDownloader(new OkHttpDownloader())
+                .setNamespace("MvilaaDownload")
+                .build();
+    }
+
     @SuppressLint("Range")
-    @RequiresApi(api = Build.VERSION_CODES.M)
-    public static void startDownload(Context context, View view, String name, String url) {
+//    @RequiresApi(api = Build.VERSION_CODES.M)
+    public static void startDownload(Context context, View view, String name, String url,int groupId) {
         Fetch fetch;
-        final FetchConfiguration fetchConfiguration = new FetchConfiguration.Builder(context)
-            .setDownloadConcurrentLimit(1)
-            .enableHashCheck(true)
-            .setGlobalNetworkType(NetworkType.ALL)
-            .enableFileExistChecks(true)
-            .enableRetryOnNetworkGain(true)
-            .setHttpDownloader(new OkHttpDownloader(Downloader.FileDownloaderType.PARALLEL))
-            .setNamespace("MvilaaDownload")
-            .build();
-        fetch = Fetch.Impl.getInstance(fetchConfiguration);
+        fetch = Fetch.Impl.getInstance(getConfiguration(context));
 
         File dDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-//        File file = new File(dDirectory,"/" + context.getResources().getString(R.string.app_name));
         String filename = dDirectory + "/" + name;
 
         com.tonyodev.fetch2.Request request = new com.tonyodev.fetch2.Request(url, filename);
         request.setPriority(Priority.HIGH);
+        request.setGroupId(groupId);
         request.setNetworkType(NetworkType.ALL);
 
         fetch.enqueue(request, updatedRequest -> {
-            //Request was successfully enqueued for download.
-            Snackbar snackbar = Snackbar.make(view, "Downloading Started!", Snackbar.LENGTH_INDEFINITE);
-            snackbar.setBackgroundTint(ContextCompat.getColor(context, R.color.my));
-            snackbar.setAction("Show", v -> {
-//            Intent intent = new Intent(context, DwnActivity.class);
-//            context.startActivity(intent);
-        });
-            snackbar.show();
+//            Snackbar snackbar = Snackbar.make(view, "Downloading Started!", Snackbar.LENGTH_INDEFINITE);
+//            snackbar.setBackgroundTint(ContextCompat.getColor(context, R.color.my));
+//            snackbar.setAction("Show", v -> {
+////            Intent intent = new Intent(context, DwnActivity.class);
+////            context.startActivity(intent);
+//        });
+//            snackbar.show();
 
         }, error -> {
             //An error occurred enqueuing the request.

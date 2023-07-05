@@ -9,7 +9,7 @@ import com.d0st.bhadoozindex.databinding.KItemBinding
 import com.kdownloader.KDownloader
 import com.kdownloader.Status
 
-class kAdapter : RecyclerView.Adapter<kAdapter.ViewHolder>() {
+class kAdapter() : RecyclerView.Adapter<kAdapter.ViewHolder>() {
 
     private var mList: ArrayList<Map<Int,com.kdownloader.internal.DownloadRequest>> = arrayListOf()
     lateinit var kDownloader: KDownloader
@@ -44,6 +44,7 @@ class kAdapter : RecyclerView.Adapter<kAdapter.ViewHolder>() {
                                 binding.progressText1.text = "$it%"
                             },
                             onCompleted = {
+                                println("Complete = $position")
                                 binding.status1.text = "Completed"
                                 binding.progressText1.text = "100%"
                                 binding.startCancelButton1.visibility = View.GONE

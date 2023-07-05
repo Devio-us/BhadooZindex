@@ -141,14 +141,14 @@ public final class DwnAdapter extends RecyclerView.Adapter<DwnAdapter.ViewHolder
 
         holder.actionButtonDelete.setOnClickListener(view -> {
             final Uri uri12 = downloadData.download.getFileUri();
-            new AlertDialog.Builder(context)
-                    .setMessage(context.getString(R.string.delete_title, uri12.getLastPathSegment()))
-                    .setPositiveButton("Delete", (dialog, which) -> {
+//            new AlertDialog.Builder(context)
+//                    .setMessage(context.getString(R.string.delete_title, uri12.getLastPathSegment()))
+//                    .setPositiveButton("Delete", (dialog, which) -> {
                         actionListener.onRemoveDownload(downloadData.download.getId());
                         DwnHelper.deleteFileAndContents(new File(downloadData.download.getFile()));
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
+//                    })
+//                    .setNegativeButton("Cancel", null)
+//                    .show();
 
         });
         //Set delete action
