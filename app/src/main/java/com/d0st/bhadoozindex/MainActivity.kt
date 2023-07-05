@@ -1,20 +1,37 @@
 package com.d0st.bhadoozindex
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.view.View
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
 
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
 import com.d0st.bhadoozindex.dto.Cdn
 import com.d0st.bhadoozindex.test.Download9State
 import com.d0st.bhadoozindex.test.DownloadState
+import com.d0st.bhadoozindex.test.Downloader3
 import com.d0st.bhadoozindex.test.Downloader9
+import com.d0st.bhadoozindex.utils.ActionListener
+import com.d0st.bhadoozindex.utils.DwnAdapter
+import com.d0st.bhadoozindex.utils.DwnHelper.startDownload
 import com.kdownloader.KDownloader
+import com.tonyodev.fetch2.AbstractFetchListener
+import com.tonyodev.fetch2.Download
+import com.tonyodev.fetch2.Fetch
+import com.tonyodev.fetch2.FetchConfiguration
+import com.tonyodev.fetch2.FetchListener
+import com.tonyodev.fetch2.NetworkType
+import com.tonyodev.fetch2core.Downloader
+import com.tonyodev.fetch2okhttp.OkHttpDownloader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -22,6 +39,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.Collections
+import java.util.Comparator
 import java.util.concurrent.atomic.AtomicInteger
 
 const val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
@@ -33,7 +52,7 @@ sealed class KState {
     data class Error(val message: String) : KState()
 }
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), ActionListener {
 
     companion object {
         private const val TAG = "MainActivity"
@@ -47,8 +66,8 @@ class MainActivity : AppCompatActivity() {
     val outPath = Environment.getExternalStorageDirectory().toString() + "/Download/"
     private lateinit var rvAdapter: StateAdapter
     private lateinit var kAdapter: kAdapter
-//    private val downloader = Downloader3()
-    private val downloader = Downloader9()
+    private val downloader = Downloader3()
+//    private val downloader = Downloader9()
 
     private lateinit var kDownloader: KDownloader
     lateinit var dirPath: String
@@ -56,10 +75,13 @@ class MainActivity : AppCompatActivity() {
     private var _kResponse = MutableLiveData<KState>()
     val respose = _kResponse
 
+    private var fetch: Fetch? = null
+    private var fileAdapter: DwnAdapter? = null
+    var recyclerView: RecyclerView? = null
+    private val fetchNamespace = "MvilaaDownload"
+    private val unknownRemainingTime: Long = -1
+    private val unknownDownloadedBytesPerSecond: Long = 0
 
-    /*  Pause Algorithm = First Check Which bunch is currently downloading if 15 to 20 bunch is in process then pause download and check which file
-        is downloaded in bunch like 15 is downloaded then start download from 16
-    */
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +96,7 @@ class MainActivity : AppCompatActivity() {
         kAdapter = kAdapter()
         kAdapter.kDownloader = kDownloader
 //        binding.rvList.adapter = rvAdapter
-        binding.kList.adapter = kAdapter
+//        binding.kList.adapter = kAdapter
 
         val link = binding.link.text
         binding.get.setOnClickListener {
@@ -86,7 +108,7 @@ class MainActivity : AppCompatActivity() {
 
                     lifecycleScope.launch {
 //                        downloader.main(onSuccess, mb720,this@MainActivity,kDownloader)
-                        kDownloader(onSuccess)
+                        fetchDownloader(onSuccess)
                     }
 
 //                   lifecycleScope.launch {
@@ -99,6 +121,19 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        setUpViews()
+        val fetchConfiguration: FetchConfiguration = FetchConfiguration.Builder(this)
+            .setDownloadConcurrentLimit(1)
+            .enableHashCheck(true)
+            .setGlobalNetworkType(NetworkType.ALL)
+            .enableFileExistChecks(true)
+            .enableRetryOnNetworkGain(true)
+            .setHttpDownloader(OkHttpDownloader(Downloader.FileDownloaderType.PARALLEL))
+            .setNamespace(fetchNamespace)
+            .build()
+
+        fetch = Fetch.getInstance(fetchConfiguration)
 
 //        binding.test.setOnClickListener {
 //            val externalFilesDir = this.getExternalFilesDir("parts") // Get the application's internal storage directory
@@ -122,41 +157,181 @@ class MainActivity : AppCompatActivity() {
     }
     private val requests = ArrayList<Map<Int,com.kdownloader.internal.DownloadRequest>>()
 
-   suspend fun kDownloader(Json:Cdn){
+   suspend fun fetchDownloader(Json:Cdn){
 
         val batchSize = 3
         val partCount = AtomicInteger(0)
-        _kResponse.postValue(KState.IdleState)
 
-        while (partCount.get() < 2) {
+        while (partCount.get() < 5) {
             val startIndex = partCount.getAndAdd(batchSize)
-            val endIndex = (startIndex + batchSize - 1).coerceAtMost(2 - 1)
+            val endIndex = (startIndex + batchSize - 1).coerceAtMost(5 - 1)
             Log.d("kDownloader", "startIndex = ${startIndex + 1}")
             Log.d("kDownloader", "endIndex = ${endIndex+1}")
 
             for (partNumber in startIndex..endIndex) {
 
-                val request = kDownloader.newRequestBuilder(
-                    "$mb720.part${partNumber + 1}", outPath, "$partNumber.mp4",
-                ).tag(TAG + "1").build()
+                startDownload(this@MainActivity,binding.root,"${partNumber+1}.mp4","$mb720.part${partNumber + 1}")
 
-                requests.add(mapOf(partNumber+1 to request))
+//                requests.add(mapOf(partNumber+1 to request))
 
             }
         }
-
-        coroutineScope {
-            launch {
-                joinFiles(outPath, "${outPath}${Json.name}")
-
-            }
-        }
-
-
         Log.d("kDownloader","Create Download")
-        _kResponse.postValue(KState.RequestCompleted(requests))
 
     }
+
+    private fun setUpViews() {
+        recyclerView = binding.fetchList
+        recyclerView!!.layoutManager = LinearLayoutManager(this)
+        fileAdapter = DwnAdapter(this)
+        recyclerView!!.adapter = fileAdapter
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
+    override fun onResume() {
+        super.onResume()
+        fetch?.getDownloads { downloads ->
+            val list: java.util.ArrayList<Download> = java.util.ArrayList(downloads)
+            Collections.sort(list, Comparator.comparingLong(Download::created))
+            list.reverse()
+            for (download in list) {
+                fileAdapter!!.addDownload(download)
+            }
+            if (downloads.isEmpty()) {
+//                binding.noDownload.visibility = View.VISIBLE
+                recyclerView!!.visibility = View.GONE
+            } else {
+//                binding.noDownload.visibility = View.GONE
+                recyclerView!!.visibility = View.VISIBLE
+
+            }
+        }?.addListener(fetchListener)
+    }
+
+    private val fetchListener: FetchListener = object : AbstractFetchListener() {
+        override fun onAdded(download: Download) {
+            super.onAdded(download)
+            fileAdapter!!.addDownload(download)
+        }
+
+        override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onCompleted(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onProgress(
+            download: Download,
+            etaInMilliSeconds: Long,
+            downloadedBytesPerSecond: Long
+        ) {
+            fileAdapter!!.update(download, etaInMilliSeconds, downloadedBytesPerSecond)
+        }
+
+        override fun onPaused(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onResumed(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onCancelled(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onRemoved(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+        override fun onDeleted(download: Download) {
+            fileAdapter!!.update(
+                download,
+                unknownRemainingTime,
+                unknownDownloadedBytesPerSecond
+            )
+        }
+
+
+    }
+
+    override fun onPauseDownload(id: Int) {
+        fetch?.pause(id)
+    }
+
+    override fun onResumeDownload(id: Int) {
+        fetch?.resume(id)
+    }
+
+    override fun onRemoveDownload(id: Int) {
+        fetch?.remove(id)
+    }
+
+    override fun onRetryDownload(id: Int) {
+        fetch?.retry(id)
+    }
+
+//   suspend fun kDownloader(Json:Cdn){
+//
+//        val batchSize = 3
+//        val partCount = AtomicInteger(0)
+//        _kResponse.postValue(KState.IdleState)
+//
+//        while (partCount.get() < 2) {
+//            val startIndex = partCount.getAndAdd(batchSize)
+//            val endIndex = (startIndex + batchSize - 1).coerceAtMost(2 - 1)
+//            Log.d("kDownloader", "startIndex = ${startIndex + 1}")
+//            Log.d("kDownloader", "endIndex = ${endIndex+1}")
+//
+//            for (partNumber in startIndex..endIndex) {
+//
+//                val request = kDownloader.newRequestBuilder(
+//                    "$mb720.part${partNumber + 1}", outPath, "$partNumber.mp4",
+//                ).tag(TAG + "1").build()
+//
+//                requests.add(mapOf(partNumber+1 to request))
+//
+//            }
+//        }
+//
+//        coroutineScope {
+//            launch {
+//                joinFiles(outPath, "${outPath}${Json.name}")
+//
+//            }
+//        }
+//
+//
+//        Log.d("kDownloader","Create Download")
+//        _kResponse.postValue(KState.RequestCompleted(requests))
+//
+//    }
 
     private suspend fun joinFiles(inputDir: String, outputFile: String) =
         withContext(Dispatchers.IO) {
