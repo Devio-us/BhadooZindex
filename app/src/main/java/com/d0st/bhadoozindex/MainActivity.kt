@@ -1,7 +1,6 @@
 package com.d0st.bhadoozindex
 
 import android.annotation.SuppressLint
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
@@ -14,10 +13,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.d0st.bhadoozindex.databinding.ActivityMainBinding
 import com.d0st.bhadoozindex.dto.Cdn
-import com.d0st.bhadoozindex.test.Download9State
 import com.d0st.bhadoozindex.test.DownloadState
 import com.d0st.bhadoozindex.test.Downloader3
-import com.d0st.bhadoozindex.test.Downloader9
 import com.d0st.bhadoozindex.utils.ActionListener
 import com.d0st.bhadoozindex.utils.DwnAdapter
 import com.d0st.bhadoozindex.utils.DwnHelper.getConfiguration
@@ -26,12 +23,9 @@ import com.kdownloader.KDownloader
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Fetch
-import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.FetchListener
-import com.tonyodev.fetch2.NetworkType
-import com.tonyodev.fetch2core.Downloader
-import com.tonyodev.fetch2okhttp.OkHttpDownloader
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,15 +33,20 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.Collections
-import java.util.Comparator
 import java.util.concurrent.atomic.AtomicInteger
 
-const val uRl1 = "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
-const val mb720 = "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
-const val gb3_13 = "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
+const val uRl1 =
+    "https://23307459.small-file-testing.pages.dev/8f47ffd636bee9c586b9170c2e868886183a4c5f6e7d390919742863318113eb"
+const val mb720 =
+    "https://cdn-2.storage.zindex.eu.org/afff84584619ed805f8fa103a3164881a4b28e4510ede04bbd46e3720b33d165"
+const val gb3_13 =
+    "https://cdn-2.storage.zindex.eu.org/890c13f5cf13970a5d902b931bf7962698456f41e784d4364d2a2663379d785a"
+
 sealed class KState {
-    object IdleState:KState()
-    data class RequestCompleted(val state: ArrayList<Map<Int,com.kdownloader.internal.DownloadRequest>>) : KState()
+    object IdleState : KState()
+    data class RequestCompleted(val state: ArrayList<Map<Int, com.kdownloader.internal.DownloadRequest>>) :
+        KState()
+
     data class Error(val message: String) : KState()
 }
 
@@ -105,11 +104,11 @@ class MainActivity : AppCompatActivity(), ActionListener {
             Permission.verifyStoragePermission(this) {
                 vm.loadAndCancel(link.toString()) { onSuccess ->
                     initFetch()
-                   lifecycleScope.launch {
-                        if(link.toString().isEmpty()){
-                            downloader.main(onSuccess, mb720,this@MainActivity)
+                    lifecycleScope.launch {
+                        if (link.toString().isEmpty()) {
+                            downloader.main(onSuccess, mb720, this@MainActivity)
                         } else {
-                            downloader.main(onSuccess, link.toString(),this@MainActivity)
+                            downloader.main(onSuccess, link.toString(), this@MainActivity)
                         }
                     }
                 }
@@ -129,8 +128,18 @@ class MainActivity : AppCompatActivity(), ActionListener {
         binding.join.setOnClickListener {
             lifecycleScope.launch {
                 joinFiles(outPath, "${outPath}Test.mkv")
-
             }
+        }
+
+        binding.pause.setOnClickListener {
+//            fetch!!.pauseAll()
+            fetch!!.cancelAll()
+//            job.cancel()
+        }
+
+        binding.resume.setOnClickListener {
+            fetch!!.resumeAll()
+            fetch!!.awaitFinish()
         }
 
         setUpViews()
@@ -166,31 +175,59 @@ class MainActivity : AppCompatActivity(), ActionListener {
 //        }
 
     }
-    private val requests = ArrayList<Map<Int,com.kdownloader.internal.DownloadRequest>>()
 
-   fun fetchDownloader(Json:Cdn){
+    private val requests = ArrayList<Map<Int, com.kdownloader.internal.DownloadRequest>>()
+
+    var currentBatch = 0
+
+    private lateinit var job: Job
+    suspend fun fetchDownloader(Json: Cdn) {
 
         val batchSize = 3
         val partCount = AtomicInteger(1)
+        fetchDownloads()
+        fetch!!.deleteAll()
 
         while (partCount.get() < Json.parts) {
+
+
             val startIndex = partCount.getAndAdd(batchSize)
-            val endIndex = (startIndex + batchSize - 1).coerceAtMost(5)
+            val endIndex = (startIndex + batchSize - 1).coerceAtMost(Json.parts)
+            Log.d("kDownloader", "partCount = ${partCount}")
             Log.d("kDownloader", "startIndex = ${startIndex}")
             Log.d("kDownloader", "endIndex = ${endIndex}")
 
-            for (partNumber in startIndex..endIndex) {
-
-                startDownload(this@MainActivity,binding.root,"${partNumber}.bin","$mb720.part${partNumber}","${startIndex}${endIndex}".toInt())
-
+           job = coroutineScope {
+                launch(Dispatchers.IO) {
+                    fetch!!.awaitFinish()
+                    for (partNumber in startIndex..endIndex) {
+                        currentBatch = ("${startIndex}${endIndex}".toInt())
+                        startDownload(
+                            this@MainActivity,
+                            binding.root,
+                            "${partNumber}.bin",
+                            "$mb720.part${partNumber}",
+                            "${startIndex}${endIndex}".toInt()
+                        )
 //                requests.add(mapOf(partNumber+1 to request))
+                    }
+                }
+            }
+            println("currentBatch Size = $currentBatch")
 
+//            val externalCacheString = "${this.externalCacheDir}/Parts"
+//            val externalCacheFolder = File(externalCacheString)
+//            if (!externalCacheFolder.exists()) {
+//                externalCacheFolder.mkdirs()
+//            }
+            coroutineScope {
+                Log.d("kDownloader", "Create Download")
+                launch(Dispatchers.IO) {
+                    joinFiles(outPath, "${outPath}${Json.name}")
+
+                }
             }
         }
-       fetchDownloads()
-
-       Log.d("kDownloader","Create Download")
-
     }
 
     private fun setUpViews() {
@@ -200,11 +237,12 @@ class MainActivity : AppCompatActivity(), ActionListener {
         recyclerView!!.adapter = fileAdapter
     }
 
-    private fun fetchDownloads(){
+    private fun fetchDownloads() {
         fetch?.getDownloads { downloads ->
             val list: java.util.ArrayList<Download> = java.util.ArrayList(downloads)
             Collections.sort(list, Comparator.comparingLong(Download::created))
             list.reverse()
+//            val list = ArrayList(downloads).reversed()
             for (download in list) {
                 fileAdapter!!.addDownload(download)
             }
@@ -217,12 +255,31 @@ class MainActivity : AppCompatActivity(), ActionListener {
 
             }
         }?.addListener(fetchListener)
+
+//        fetch?.getDownloadsInGroup(1113){ downloads ->
+//            downloads.forEach { println("group link = ${it.url}") }
+//            val list: java.util.ArrayList<Download> = java.util.ArrayList(downloads)
+//            Collections.sort(list, Comparator.comparingLong(Download::created))
+//            list.reverse()
+//            for (download in list) {
+//                fileAdapter!!.addDownload(download)
+//            }
+//            if (downloads.isEmpty()) {
+////                binding.noDownload.visibility = View.VISIBLE
+//                recyclerView!!.visibility = View.GONE
+//            } else {
+////                binding.noDownload.visibility = View.GONE
+//                recyclerView!!.visibility = View.VISIBLE
+//
+//            }
+//        }?.addListener(fetchListener)
     }
 
     private val fetchListener: FetchListener = object : AbstractFetchListener() {
         override fun onAdded(download: Download) {
             super.onAdded(download)
             fileAdapter!!.addDownload(download)
+            fileAdapter!!.notifyDataSetChanged()
         }
 
         override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
@@ -368,19 +425,21 @@ class MainActivity : AppCompatActivity(), ActionListener {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun kInitFetch() {
-        Log.d("Downloader3","InitFetch Called")
+        Log.d("Downloader3", "InitFetch Called")
         respose.observe(this) { response ->
-            when(response){
+            when (response) {
                 is KState.IdleState -> {
 
-                    Log.d("KState","IdleState")
+                    Log.d("KState", "IdleState")
                 }
+
                 is KState.RequestCompleted -> {
-                     kAdapter.setCommonData(response.state)
+                    kAdapter.setCommonData(response.state)
                     kAdapter.notifyDataSetChanged()
                 }
+
                 is KState.Error -> {
-                    Log.wtf("KState","DownloadState Error ${response.message}")
+                    Log.wtf("KState", "DownloadState Error ${response.message}")
                 }
             }
         }

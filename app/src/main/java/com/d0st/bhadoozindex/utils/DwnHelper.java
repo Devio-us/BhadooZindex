@@ -29,15 +29,17 @@ public class DwnHelper {
 
     public static FetchConfiguration getConfiguration (Context context){
         return new FetchConfiguration.Builder(context)
-                .setDownloadConcurrentLimit(5)
+                .setDownloadConcurrentLimit(1)
                 .setProgressReportingInterval(3000)
 //              .enableHashCheck(true)
                 .createDownloadFileOnEnqueue(false)
                 .enableLogging(true)
+                .enableAutoStart(false)
+                .preAllocateFileOnCreation(false)
                 .setGlobalNetworkType(NetworkType.ALL)
                 .enableFileExistChecks(true)
                 .enableRetryOnNetworkGain(true)
-                .setHttpDownloader(new OkHttpDownloader())
+//                .setHttpDownloader(new OkHttpDownloader())
                 .setNamespace("MvilaaDownload")
                 .build();
     }
@@ -50,10 +52,10 @@ public class DwnHelper {
 
         File dDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
         String filename = dDirectory + "/" + name;
-
         com.tonyodev.fetch2.Request request = new com.tonyodev.fetch2.Request(url, filename);
         request.setPriority(Priority.HIGH);
         request.setGroupId(groupId);
+        request.setTag(String.valueOf(groupId));
         request.setNetworkType(NetworkType.ALL);
 
         fetch.enqueue(request, updatedRequest -> {
